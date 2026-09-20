@@ -1,0 +1,66 @@
+{
+  "name": "pi-python-helper",
+  "version": "0.1.0",
+  "description": "Python (uv) development tools for the pi coding agent",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "python",
+    "uv",
+    "pytest"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wkqco33/pi-python-helper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wkqco33/pi-python-helper/issues"
+  },
+  "homepage": "https://github.com/wkqco33/pi-python-helper#readme",
+  "files": [
+    "extensions",
+    "src",
+    "helpers",
+    "skills",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:coverage": "tsx --test --experimental-test-coverage test/*.test.ts",
+    "test:e2e": "tsx test/manual/e2e-uv.ts",
+    "format": "prettier --write \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\"",
+    "pack-check": "npm pack --dry-run",
+    "check": "npm test && npm run typecheck && npm run format:check && npm run pack-check"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "prettier": "^3.9.8",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
