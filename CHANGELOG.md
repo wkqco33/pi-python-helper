@@ -7,6 +7,15 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-21
+
+### Changed
+
+- Refactored `src/dependencies/plan.ts` by extracting static import aliases and console-only distribution tables into `src/dependencies/aliases.ts`.
+- Refactored `src/build/failure.ts` by extracting Python and pytest traceback frame parsing and library frame detection into `src/build/traceback.ts`.
+- Decomposed monolithic `inspectProject` in `src/project/inspect.ts` into focused diagnostic collectors for manifest, lockfile, and environment rules.
+- Moved `py_tdd_checkpoint` and `py_completion_evidence` tools from `extensions/tools/dependencies.ts` to `extensions/tools/validation.ts` to align tool registration with module responsibilities.
+
 ## [0.1.0] - 2026-09-21
 
 ### Added
