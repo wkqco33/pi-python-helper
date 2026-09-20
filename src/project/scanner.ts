@@ -2,7 +2,18 @@ import { runCommand } from '../core/runner.ts';
 
 export const HELPER_URL = new URL('../../helpers/scan_project.py', import.meta.url);
 
-export type ScanMode = 'environment' | 'manifest' | 'imports' | 'all';
+/** Sections the scanner can produce. A comma-separated combination is allowed. */
+export type ScanMode =
+  | 'environment'
+  | 'manifest'
+  | 'imports'
+  | 'all'
+  | 'environment,manifest'
+  | 'environment,imports'
+  | 'manifest,imports';
+
+/** Bumped by the scanner when the request or result document changes shape. */
+export const SUPPORTED_SCANNER_VERSION = 1;
 
 export interface DeclaredDependency {
   raw: string;
@@ -110,6 +121,7 @@ export interface EnvironmentSection {
 }
 
 export interface ScanPayload {
+  scannerVersion?: number;
   root: string;
   mode: ScanMode;
   pythonVersion: string;
@@ -127,7 +139,8 @@ export interface ScanOutcome {
   interpreter?: string;
   payload?: ScanPayload;
   /** Diagnostic code the caller can surface verbatim when `ok` is false. */
-  code?: 'PYTHON_NOT_FOUND' | 'SCANNER_FAILED' | 'SCANNER_INVALID_OUTPUT';
+  code?:
+    'PYTHON_NOT_FOUND' | 'SCANNER_FAILED' | 'SCANNER_INVALID_OUTPUT' | 'SCANNER_VERSION_MISMATCH';
   message?: string;
   stderr?: string;
 }
@@ -204,6 +217,18 @@ export async function runScanProject(
     const payload = JSON.parse(run.stdout) as ScanPayload;
     if (payload.error) {
       return { ok: false, interpreter, code: 'SCANNER_FAILED', message: payload.error };
+    }
+    // Refuse to interpret a document whose shape may have changed.
+    if (
+      typeof payload.scannerVersion === 'number' &&
+      payload.scannerVersion !== SUPPORTED_SCANNER_VERSION
+    ) {
+      return {
+        ok: false,
+        interpreter,
+        code: 'SCANNER_VERSION_MISMATCH',
+        message: `The scanner reported protocol version ${payload.scannerVersion}, but this extension understands version ${SUPPORTED_SCANNER_VERSION}.`,
+      };
     }
     return { ok: true, interpreter, payload };
   } catch {

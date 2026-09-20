@@ -1,4 +1,4 @@
-import { basename, dirname } from 'node:path';
+import { basename } from 'node:path';
 
 export function toPosix(path: string): string {
   return path.replace(/\\/g, '/');

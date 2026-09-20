@@ -1,18 +1,13 @@
 import { type Diagnostic, warn } from '../core/result.ts';
 import { runCommand } from '../core/runner.ts';
-import { findProjectRoot, findVenvDir, exists, isFile } from '../project/root.ts';
-import { type EnvironmentSection, resolveInterpreter, runScanProject } from '../project/scanner.ts';
-
-/** Tools the extension reports on. Lint/type diagnostics are delegated elsewhere. */
-const PROBED_TOOLS = ['uv', 'ruff', 'mypy', 'ty', 'pyright', 'pytest', 'pre-commit'] as const;
-
-export interface ToolAvailability {
-  name: string;
-  available: boolean;
-  version?: string;
-  /** Tools that the project should invoke through `uv run` rather than directly. */
-  preferredInvocation: string;
-}
+import { findProjectRoot, findVenvDir, isFile } from '../project/root.ts';
+import {
+  type EnvironmentSection,
+  type LockPackage,
+  resolveInterpreter,
+  runScanProject,
+} from '../project/scanner.ts';
+import { inspectTools, type ToolAvailability } from './tools.ts';
 
 export interface PythonEnvironment {
   interpreter?: string;
@@ -30,6 +25,10 @@ function parseVersion(output: string): string | undefined {
   return match?.[1];
 }
 
+/**
+ * Report the version of a host CLI. Reserved for `uv`, which cannot be resolved
+ * from the project lockfile; project tools get their version from `uv.lock`.
+ */
 export async function toolVersion(
   cwd: string,
   name: string,
@@ -47,8 +46,10 @@ export async function toolVersion(
 
 /**
  * Describe the interpreter, project root, environment, and tool availability.
- * Every probe is bounded and independent: a missing tool is reported as an
- * availability fact rather than an error.
+ *
+ * A single bounded scanner call supplies both the interpreter facts and the
+ * lockfile, so availability is resolved from filesystem probes plus the
+ * lockfile instead of one subprocess per tool.
  */
 export async function detectPythonEnvironment(
   cwd: string,
@@ -58,29 +59,22 @@ export async function detectPythonEnvironment(
   const suggestions: string[] = [];
   const interpreter = await resolveInterpreter(cwd, signal);
   const projectRoot = await findProjectRoot(cwd);
-
-  const probed = await Promise.all(
-    PROBED_TOOLS.map(async (name) => {
-      const version = await toolVersion(cwd, name, signal);
-      return {
-        name,
-        available: version !== undefined,
-        version,
-        preferredInvocation: name === 'uv' ? 'uv' : `uv run --frozen ${name}`,
-      } satisfies ToolAvailability;
-    }),
-  );
-  const uvEntry = probed.find((entry) => entry.name === 'uv');
+  const scanRoot = projectRoot ?? cwd;
 
   let python: EnvironmentSection | undefined;
+  let lockPackages: LockPackage[] = [];
   if (interpreter) {
     const scan = await runScanProject(
       cwd,
-      { root: projectRoot ?? cwd, mode: 'environment' },
+      { root: scanRoot, mode: 'environment,manifest' },
       signal,
     );
-    if (scan.ok) python = scan.payload?.environment;
-    else if (scan.message) warnings.push(warn(scan.code ?? 'SCANNER_FAILED', scan.message));
+    if (scan.ok) {
+      python = scan.payload?.environment;
+      lockPackages = scan.payload?.lock?.packages ?? [];
+    } else if (scan.message) {
+      warnings.push(warn(scan.code ?? 'SCANNER_FAILED', scan.message));
+    }
   } else {
     warnings.push(
       warn(
@@ -103,7 +97,12 @@ export async function detectPythonEnvironment(
     );
   }
 
-  if (!uvEntry?.available) {
+  const venvDir = projectRoot ? await findVenvDir(projectRoot) : undefined;
+  const lockPresent = projectRoot ? await isFile(`${projectRoot}/uv.lock`) : false;
+  const tools = await inspectTools({ venvDir, lockPackages });
+
+  const uvVersion = await toolVersion(cwd, 'uv', signal);
+  if (!uvVersion) {
     warnings.push(
       warn(
         'UV_NOT_AVAILABLE',
@@ -112,9 +111,6 @@ export async function detectPythonEnvironment(
     );
     suggestions.push('Install uv (https://docs.astral.sh/uv/) before build or test operations.');
   }
-
-  const venvDir = projectRoot ? await findVenvDir(projectRoot) : undefined;
-  const lockPresent = projectRoot ? await isFile(`${projectRoot}/uv.lock`) : false;
 
   if (projectRoot && python && !python.inVirtualEnvironment && !venvDir) {
     warnings.push(
@@ -162,13 +158,9 @@ export async function detectPythonEnvironment(
     python,
     projectRoot,
     venvDir,
-    uv: { available: uvEntry?.available ?? false, version: uvEntry?.version, lockPresent },
-    tools: probed,
+    uv: { available: uvVersion !== undefined, version: uvVersion, lockPresent },
+    tools,
     warnings,
     suggestions,
   };
-}
-
-export async function hasFile(path: string): Promise<boolean> {
-  return exists(path);
 }

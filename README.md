@@ -114,15 +114,40 @@ npm run test:e2e
 
 분석은 `helpers/scan_project.py`에 위임합니다. 이 스크립트는 stdin으로 JSON 요청을 받아 stdout으로 JSON을 출력하며 프로젝트를 수정하지 않습니다. import 스캔에는 `ast`, 매니페스트 파싱에는 `tomllib`(Python 3.11+) 또는 `tomli`가 필요하고, 둘 다 없으면 매니페스트 분석이 저하된 상태로 동작함을 명시적으로 경고합니다.
 
+스캐너는 독립 실행도 가능합니다:
+
+```bash
+python3 helpers/scan_project.py --help
+python3 helpers/scan_project.py --mode environment,manifest --root . </dev/null
+```
+
+종료 코드는 `0` 성공, `1` 예상외 실패, `2` 잘못된 입력입니다. 결과는 stdout(JSON 문서 하나), 진단 메시지는 stderr로 분리됩니다.
+
+## 성능 특성 (Measured cost)
+
+측정 환경: Linux, Python 3.12, uv 0.12.
+
+| 작업 | 비용 |
+|---|---|
+| `py_environment` 전체 | ~64 ms (스캐너 1회 + `uv --version` 1회) |
+| 도구 가용성 판정 | ~2.3 ms (프로세스 실행 없음) |
+| `py_project_inspect` 매니페스트 스캔 | ~31 ms |
+| import 스캔 (`ast`) | ~76 ms (`py_dependency_plan`에만 사용) |
+| 설치본 스캔 | ~3 ms / 22개 패키지 (`METADATA` 헤더만 읽음) |
+
+도구 존재 여부는 `--version`을 실행해서 확인하지 않습니다. 그 방식은 도구당 프로세스 1회(pytest만 154 ms)를 썼고 호스트 버전을 프로젝트 버전으로 잘못 보고했습니다. 대신 `.venv/bin`과 PATH를 파일시스템으로 탐색하고 버전은 `uv.lock`에서 가져옵니다.
+
 ## 지원 및 호환성 (Support and compatibility)
 
 - Node.js 20 이상
-- Python 3.9 이상 (매니페스트/락파일 분석은 3.11+ 또는 `tomli` 필요)
+- Python 3.10 / 3.11 / 3.12 / 3.13 (CI 매트릭스에서 검증, 3.11+ 권장)
 - uv 0.5+ 우선 지원, `uv.lock`(revision 2/3) 기준
 - 정적 프로젝트/의존성 분석 도구는 uv나 `.venv` 없이도 작동합니다.
 - 라이선스: Apache-2.0
 
-릴리스 이력은 `CHANGELOG.md`, 개발 규칙은 `AGENTS.md`, 지원 런타임 정보는 `docs/compatibility.md`, 취약점 보고는 `SECURITY.md`를 참고하세요.
+릴리스 이력은 `CHANGELOG.md`, 개발 규칙은 `AGENTS.md`와 `CONTRIBUTING.md`, 지원 런타임 및 성능 정보는 `docs/compatibility.md`, 취약점 보고는 `SECURITY.md`를 참고하세요.
+
+릴리스는 `v<version>` 태그를 푸시하면 `.github/workflows/publish.yml`이 태그와 `package.json` 버전을 검증한 뒤 npm provenance와 함께 배포합니다.
 
 ## 설계 원칙 (Design principles)
 

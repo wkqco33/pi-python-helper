@@ -7,19 +7,40 @@ answered reliably from the outside:
 * which imports a project actually uses (needs `ast`, not text search), and
 * what `pyproject.toml` and `uv.lock` declare (needs a real TOML parser).
 
-The script reads a single JSON request from stdin and writes a single JSON
-document to stdout. It never writes to the project and never imports project
-code, so it is safe to run against an uninstalled checkout.
+Protocol
+--------
+A JSON request is read from stdin and exactly one JSON document is written to
+stdout. Human-readable diagnostics go to stderr. The script never writes to the
+project and never imports project code, so it is safe to run against an
+uninstalled checkout.
+
+    usage: scan_project.py [--mode MODE] [--root DIR] [--max-files N]
+                           [--help] [--version]
+
+Exit codes:
+    0  the scan completed and a result document was written to stdout
+    1  an unexpected failure occurred (also reported as JSON on stdout)
+    2  the arguments or the request were invalid
 """
 
 from __future__ import annotations
 
+import argparse
 import ast
 import json
 import os
 import re
 import sys
 from pathlib import Path
+
+# Bumped whenever the request or the result document changes shape, so the
+# caller can refuse to interpret a document it does not understand.
+SCANNER_VERSION = 1
+
+KNOWN_SECTIONS = ("environment", "manifest", "imports")
+EXIT_OK = 0
+EXIT_FAILURE = 1
+EXIT_USAGE = 2
 
 EXCLUDED_DIRS = {
     ".git",
@@ -163,6 +184,31 @@ def safe_iterdir(path: Path) -> list:
         return []
 
 
+def contains_python(path: Path, limit: int = 400) -> bool:
+    """True when the directory actually holds Python code.
+
+    A directory under `src/` is only an importable module when it contains
+    Python. Without this check a TypeScript or JavaScript tree that happens to
+    live under `src/` would be reported as a Python package. The walk is bounded
+    so a deep tree cannot make layout detection expensive.
+    """
+    if safe_is_file(path / "__init__.py"):
+        return True
+    seen = 0
+    stack = [path]
+    while stack and seen < limit:
+        current = stack.pop()
+        for entry in safe_iterdir(current):
+            seen += 1
+            if entry.name in EXCLUDED_DIRS:
+                continue
+            if entry.is_dir():
+                stack.append(entry)
+            elif entry.is_file() and entry.suffix == ".py":
+                return True
+    return False
+
+
 def detect_layout(root: Path) -> tuple[str, list[str]]:
     """Return the layout kind and the top-level importable module names."""
     modules: list[str] = []
@@ -170,7 +216,7 @@ def detect_layout(root: Path) -> tuple[str, list[str]]:
     if safe_is_dir(src):
         layout = "src"
         for entry in safe_iterdir(src):
-            if entry.is_dir() and entry.name not in EXCLUDED_DIRS:
+            if entry.is_dir() and entry.name not in EXCLUDED_DIRS and contains_python(entry):
                 modules.append(entry.name)
             elif entry.is_file() and entry.suffix == ".py" and entry.stem != "__init__":
                 modules.append(entry.stem)
@@ -609,43 +655,121 @@ def describe_environment(root: Path) -> dict:
     }
 
 
-def main() -> int:
+def parse_arguments(argv: list) -> tuple[argparse.Namespace | None, int]:
+    """Parse CLI flags. Every value also arrives through the stdin request."""
+    parser = argparse.ArgumentParser(
+        prog="scan_project.py",
+        description=(
+            "Read-only Python project scanner. A JSON request is read from stdin and "
+            "one JSON document is written to stdout; diagnostics go to stderr."
+        ),
+        epilog=(
+            "exit codes: 0 success, 1 unexpected failure, 2 invalid input. "
+            "Sections: environment, manifest, imports, all."
+        ),
+    )
+    parser.add_argument(
+        "--mode",
+        default=None,
+        help="Comma-separated sections to scan (environment,manifest,imports) or all.",
+    )
+    parser.add_argument("--root", default=None, help="Project root; defaults to the cwd.")
+    parser.add_argument("--max-files", type=int, default=None, help="Cap on scanned Python files.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"scan_project.py (scanner protocol {SCANNER_VERSION})",
+    )
+    try:
+        return parser.parse_args(argv), EXIT_OK
+    except SystemExit as exc:
+        code = exc.code if isinstance(exc.code, int) else EXIT_USAGE
+        return None, (EXIT_OK if code == 0 else EXIT_USAGE)
+
+
+def resolve_sections(raw) -> list:
+    """Expand a mode value into known sections, rejecting unknown ones."""
+    if raw is None or raw == "" or raw == "all":
+        return list(KNOWN_SECTIONS)
+    if not isinstance(raw, str):
+        raise ValueError(f"mode must be a string, got {type(raw).__name__}")
+    requested = [part.strip() for part in raw.split(",") if part.strip()]
+    if not requested:
+        raise ValueError("mode must not be empty")
+    if "all" in requested:
+        return list(KNOWN_SECTIONS)
+    unknown = [part for part in requested if part not in KNOWN_SECTIONS]
+    if unknown:
+        raise ValueError(
+            f"unknown mode section(s): {', '.join(unknown)}; expected {', '.join(KNOWN_SECTIONS)} or all"
+        )
+    # Preserve canonical order so the document layout does not depend on input order.
+    return [section for section in KNOWN_SECTIONS if section in requested]
+
+
+def fail(message: str, code: int) -> int:
+    """Report a problem on stdout and stderr: stdout stays machine-readable."""
+    print(json.dumps({"error": message}))
+    print(f"scan_project.py: {message}", file=sys.stderr)
+    return code
+
+
+def main(argv: list | None = None) -> int:
+    args, argument_code = parse_arguments(list(sys.argv[1:] if argv is None else argv))
+    if args is None:
+        return argument_code
+
     raw = sys.stdin.read()
     try:
         request = json.loads(raw) if raw.strip() else {}
     except json.JSONDecodeError as exc:
-        print(json.dumps({"error": f"invalid request JSON: {exc}"}))
-        return 2
+        return fail(f"invalid request JSON: {exc}", EXIT_USAGE)
+    if not isinstance(request, dict):
+        return fail("the request must be a JSON object", EXIT_USAGE)
 
-    root = Path(request.get("root") or os.getcwd()).resolve()
-    mode = request.get("mode") or "all"
-    max_files = int(request.get("maxFiles") or 2000)
+    # Explicit flags take precedence over the request, then the defaults.
+    raw_mode = args.mode if args.mode is not None else request.get("mode")
+    raw_root = args.root if args.root is not None else request.get("root")
+    raw_max = args.max_files if args.max_files is not None else request.get("maxFiles")
+    try:
+        sections = resolve_sections(raw_mode)
+    except ValueError as exc:
+        return fail(str(exc), EXIT_USAGE)
+    try:
+        max_files = int(raw_max if raw_max is not None else 2000)
+    except (TypeError, ValueError):
+        return fail(f"maxFiles must be an integer, got {raw_max!r}", EXIT_USAGE)
+    if max_files < 1:
+        return fail("maxFiles must be at least 1", EXIT_USAGE)
+
+    root = Path(raw_root or os.getcwd()).resolve()
     if not root.is_dir():
-        print(json.dumps({"error": f"not a directory: {root}"}))
-        return 2
+        return fail(f"not a directory: {root}", EXIT_USAGE)
 
     payload: dict = {
+        "scannerVersion": SCANNER_VERSION,
         "root": str(root),
-        "mode": mode,
+        "mode": ",".join(sections),
         "pythonVersion": sys.version.split()[0],
         "tomlAvailable": toml_module()[0] is not None,
     }
-    if mode in ("environment", "all"):
+    if "environment" in sections:
         payload["environment"] = describe_environment(root)
-    if mode in ("manifest", "all"):
+    if "manifest" in sections:
         payload["manifest"] = scan_manifests(root)
         payload["lock"] = scan_lock(root)
         payload["lockComparison"] = compare_lock(payload["lock"], payload["manifest"])
-    if mode in ("imports", "all"):
+    if "imports" in sections:
         payload["imports"] = scan_imports(root, max_files)
 
     print(json.dumps(payload))
-    return 0
+    return EXIT_OK
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(EXIT_FAILURE)
     except Exception as exc:  # a crash must still reach the caller as structured JSON
-        print(json.dumps({"error": f"scanner failed: {type(exc).__name__}: {exc}"}))
-        sys.exit(1)
+        sys.exit(fail(f"scanner failed: {type(exc).__name__}: {exc}", EXIT_FAILURE))

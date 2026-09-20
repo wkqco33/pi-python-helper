@@ -1,6 +1,29 @@
 # Changelog
 
-All notable changes are documented here.
+All notable changes are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project follows
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html); the `0.y.z` series
+does not guarantee a stable public tool schema.
+
+## [Unreleased]
+
+### Changed
+
+- `py_environment` resolves tool availability from the project environment, PATH, and `uv.lock` instead of running `--version` for every tool. It went from ~210 ms to ~64 ms and now reports the *project's* version from the lockfile instead of the host's.
+- `helpers/scan_project.py` accepts `--mode`, `--root`, `--max-files`, `--help`, and `--version`, validates the requested sections, and separates diagnostics (stderr) from results (stdout). Exit codes are now documented and stable: 0 success, 1 failure, 2 invalid input.
+- The scanner emits `scannerVersion` and the extension refuses to interpret a document from an unknown protocol version.
+- `mode` accepts a comma-separated section list, so a caller can request `environment,manifest` without running the import scan.
+- `tsconfig.json` enables `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride`, and `noFallthroughCasesInSwitch`.
+
+### Fixed
+
+- A directory under `src/` is only reported as an importable module when it actually contains Python code. A TypeScript tree under `src/` was previously listed as a Python package's modules.
+- Removed dead declarations in `src/build/failure.ts` and an unused import in `src/project/paths.ts`, both surfaced by the stricter compiler settings.
+
+### Added
+
+- `CONTRIBUTING.md` and a release workflow that publishes to npm with provenance after verifying the tag matches `package.json`.
+- Tests for the environment probe (`test/environment.test.ts`) and the scanner CLI contract (`test/helper-cli.test.ts`), and a Python 3.10–3.13 CI matrix.
 
 ## [0.1.0] - 2026-09-21
 

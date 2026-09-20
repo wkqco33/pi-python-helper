@@ -26,7 +26,7 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Check
+      - name: Check (tests, types, format, package contents)
         run: npm run check
       - name: Verify package contents
         run: npm pack --dry-run --json > pack.json
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.11', '3.12', '3.13']
+        python: ['3.10', '3.11', '3.12', '3.13']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,13 +62,34 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: false
-      - name: Scanner smoke test
+      - name: Provide tomllib on Python 3.10
+        run: python -m pip install tomli
+      - name: Scanner CLI contract
         run: |
-          printf '{"mode":"environment","root":"."}\n' | python3 helpers/scan_project.py > environment.json
-          python3 -c "import json,sys; data=json.load(open('environment.json')); assert data['tomlAvailable'] is True, data"
-          python3 -c "import json,sys; data=json.load(open('environment.json')); assert data['environment']['version'].startswith('3.'), data"
-      - name: Run scanner integration tests
-        run: npx tsx --test test/scanner-integration.test.ts
+          python3 helpers/scan_project.py --help >/dev/null
+          python3 helpers/scan_project.py --version >/dev/null
+          printf '{"mode":"environment","root":"."}' | python3 helpers/scan_project.py > environment.json
+          python3 - <<'PY'
+          import json
+          document = json.load(open('environment.json'))
+          assert document['scannerVersion'] == 1, document
+          assert document['tomlAvailable'] is True, document
+          assert document['environment']['version'].startswith('3.'), document
+          PY
+      - name: Scanner exit-code contract
+        run: |
+          set +e
+          printf 'not json' | python3 helpers/scan_project.py >/dev/null 2>&1
+          code=$?
+          set -e
+          if [ "$code" -ne 2 ]; then
+            echo "expected exit 2 for invalid input, got $code" >&2
+            exit 1
+          fi
+      - name: Scanner regression tests
+        run: |
+          npx tsx --test test/helper-cli.test.ts
+          npx tsx --test test/scanner-integration.test.ts
 
   extension-smoke:
     name: pi extension smoke test

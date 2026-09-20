@@ -103,8 +103,6 @@ function lastMatch(output: string, pattern: RegExp): RegExpMatchArray | undefine
 export function diagnoseFailure(output: string): FailureDiagnosis {
   const frames = extractTracebackFrames(output);
   const userFrame = firstUserFrame(frames);
-  const suggestions: Suggestion[] = [];
-  const evidence: FailureEvidence[] = [];
 
   const lockProblem = lastMatch(
     output,

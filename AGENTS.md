@@ -48,7 +48,10 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 - 실패 진단은 **출력상 가장 먼저 등장하는 원인**을 선택해야 합니다. `site-packages` 프레임을 원인으로 지목하지 마세요.
 - 정합성 검사에서 새 규칙을 넣을 때는 먼저 “이 항목이 이 플랫폼에서 설치되지 않는 것이 정상인가?”를 물으세요. 조건부 항목을 누락으로 보고하면 신뢰도를 잃습니다. 검증 불가 상태는 항상 `unverifiable`로 반환하고 `consistent`로 승격하지 마세요.
 - 판정을 느슨하게 만들지 말고 **증명 범위를 좁히세요**. 어떤 항목이 확실하지 않으면 `counts`에 별도 집계하고 `notes`로 공개하는 편이, 경고를 삭제하는 것보다 낫습니다.
-- Python 3.9 환경에서도 동작해야 하며, `tomllib` 부재 시 저하 상태를 명시적으로 경고하세요.
+- 성능에 민감한 경로(`py_environment`)에서 도구 존재 확인을 위해 프로세스를 실행하지 마세요. `.venv/bin`/PATH 탐색과 `uv.lock`으로 해결하고, 버전을 모르면 모른다고 보고하세요(`versionSource: 'unknown'`).
+- 스캐너 프로토콜을 바꾸면 `SCANNER_VERSION`과 `SUPPORTED_SCANNER_VERSION`을 함께 올리고 `test/helper-cli.test.ts`를 갱신하세요.
+- 헬퍼 CLI를 확장할 때는 clig.dev 규약을 따르세요: 결과는 stdout, 진단은 stderr, `--help`/`--version` 제공, 종료 코드 0/1/2 구분, 대화형 프롬프트 금지.
+- Python 3.10 환경에서도 동작해야 하며, `tomllib` 부재 시 저하 상태를 명시적으로 경고하세요.
 
 ## 테스트 규칙 (Testing rules)
 모든 파서, 정규화기, 안전 규칙, 순수 생성기 변경에 대해 단위 테스트를 작성하세요. `helpers/scan_project.py`의 계약을 바꾸면 `test/scanner-integration.test.ts`를 함께 갱신하세요. 환경 정합성 로직을 바꾸면 `test/conformance.test.ts`(순수 비교)와 `test/installed.test.ts`(파일시스템 리더)를 모두 갱신하세요. 정합성은 오탐이 발생하기 쉬운 영역이므로 마커 조건부 항목에 대한 회귀 테스트를 반드시 남기세요.

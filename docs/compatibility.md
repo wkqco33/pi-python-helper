@@ -4,10 +4,34 @@
 |---|---|---|
 | Node.js | 20, 22, 24 | 지원 (Yes) |
 | pi coding agent | 0.86+ / 피어 의존성 범위 | 확장 패키지 스모크 테스트 |
+| Python | 3.10, 3.11, 3.12, 3.13 | 4개 버전 매트릭스 |
 | uv | 0.5+ (`uv.lock` revision 2/3) | CI 설치 후 스모크 테스트 |
-| Python | 3.11+ 권장, 3.9+ 동작 | 3.11/3.12/3.13 매트릭스 |
-| 매니페스트 파싱 | `tomllib`(3.11+) 또는 `tomli` | 버전별 폴백 검증 |
-| Ubuntu | 22.04, 24.04 | CI 실행 환경 |
+| Ubuntu | `ubuntu-latest` (24.04) | CI 실행 환경 (22.04 미검증) |
+
+## 지원 종료 일정 (End of life)
+
+| 런타임 | 지원 상태 | 비고 |
+|---|---|---|
+| Python 3.9 | **미지원** | 2025-10 EOL. `sys.stdlib_module_names` 부재로 표준 라이브러리 판별 정확도가 떨어짐 |
+| Python 3.10 | 지원 | `tomllib`이 없어 `tomli` 설치가 필요 |
+| Python 3.11+ | 지원 | `tomllib` 내장, 모든 분석 기능 사용 가능 |
+| Python 3.14 | 미검증 | CI 매트릭스 추가 전까지 best-effort |
+
+매니페스트/락파일 분석은 Python 3.11+에서 가장 정확합니다. 3.10에서는 분석에 사용되는 인터프리터에 `tomli`가 설치되어 있어야 하며, 없으면 `TOML_PARSER_UNAVAILABLE` 경고 후 분석이 생략됩니다.
+
+## 성능 특성 (Measured cost)
+
+측정 환경: Linux, Python 3.12, `uv` 0.12, 이 저장소 기준.
+
+| 작업 | 비용 | 비고 |
+|---|---|---|
+| `py_environment` 전체 | ~64 ms | 스캐너 1회 + `uv --version` 1회. 도구 가용성은 프로세스 실행 없이 판정 |
+| 도구 가용성 판정 | ~2.3 ms | `.venv/bin` + PATH 파일시스템 탐색 + lock 버전 |
+| `py_project_inspect` 매니페스트 스캔 | ~31 ms | `pyproject.toml` + `uv.lock` 파싱 |
+| import 스캔 (`ast`) | ~76 ms | `py_dependency_plan`에만 사용 |
+| 설치본 스캔 | ~3 ms / 22개 패키지 | `dist-info/METADATA` 헤더만 읽음 |
+
+`py_environment`는 `--version` 실행을 도구마다 수행하지 않습니다. 과거 이 방식은 도구당 프로세스 1회(pytest만 154 ms)를 썼고 호스트 버전을 프로젝트 버전으로 잘못 보고했습니다.
 
 ## 저하 동작 (Degraded behaviour)
 
@@ -26,6 +50,15 @@
 | `packaging` 미설치 | `SPECIFIER_CHECK_UNAVAILABLE` 노트, 이름 대조만 수행 |
 | import 스캔 중 구문 오류 파일 | `UNPARSABLE_FILE` 노트로 보고하고 나머지 스캔은 계속 |
 | 스캔 파일 수 초과 | `truncated: true` 표시 |
+| 스캐너 프로토콜 불일치 | `SCANNER_VERSION_MISMATCH` 오류 반환 (문서를 해석하지 않음) |
+| 읽을 수 없는 디렉터리 | 해당 항목만 "없음"으로 처리, 전체 스캔은 계속 |
+
 ## 릴리스 호환성 (Release compatibility)
 
-본 패키지는 유의적 버전(Semantic Versioning)을 준수합니다. `0.y.z` 시리즈에서는 공개 도구 스키마가 변경될 수 있으며, 하위 호환성을 깨뜨리는 변경사항은 `CHANGELOG.md`에 명시됩니다. 릴리스 태그는 `package.json`에 명시된 버전과 반드시 일치해야 합니다 (예: `v0.1.0`).
+본 패키지는 유의적 버전(Semantic Versioning)을 준수합니다. `0.y.z` 시리즈에서는 공개 도구 스키마가 변경될 수 있으며, 하위 호환성을 깨뜨리는 변경사항은 `CHANGELOG.md`에 명시됩니다. 릴리스 태그는 `package.json`에 명시된 버전과 반드시 일치해야 하며(예: `v0.1.0`), 배포는 `.github/workflows/publish.yml`이 태그를 검증한 뒤 npm provenance와 함께 수행합니다.
+
+### Deprecation 정책
+
+- 도구 이름이나 필수 파라미터를 제거할 때는 최소 1개 마이너 버전 동안 유지하면서 `CHANGELOG.md`에 `Deprecated` 항목과 마이그레이션 안내를 남깁니다.
+- 파라미터는 additive하게 추가하고, 기존 이름은 `prepareArguments`로 흡수하는 방식을 우선합니다.
+- `1.0.0` 이전에는 위 정책을 권고 사항으로 운영하며, 예외는 `CHANGELOG.md`에 사유와 함께 기록합니다.
