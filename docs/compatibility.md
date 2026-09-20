@@ -17,7 +17,7 @@
 | Python 3.11+ | 지원 | `tomllib` 내장, 모든 분석 기능 사용 가능 |
 | Python 3.14 | 미검증 | CI 매트릭스 추가 전까지 best-effort |
 
-매니페스트/락파일 분석은 Python 3.11+에서 가장 정확합니다. 3.10에서는 분석에 사용되는 인터프리터에 `tomli`가 설치되어 있어야 하며, 없으면 `TOML_PARSER_UNAVAILABLE` 경고 후 분석이 생략됩니다.
+매니페스트/락파일 분석은 Python 3.11+에서 가장 정확합니다. 3.10에서는 분석에 사용되는 인터프리터에 `tomli`가 설치되어 있어야 하며, 없으면 `TOML_PARSER_UNAVAILABLE` 경고 후 분석이 생략됩니다. 선언된 버전 제약과 `uv.lock`의 버전 비교에는 `packaging`이 필요하며, 없으면 `SPECIFIER_CHECK_UNAVAILABLE` 노트와 `python3 -m pip install packaging` 제안을 반환하고 이름 대조만 수행합니다.
 
 ## 성능 특성 (Measured cost)
 

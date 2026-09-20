@@ -192,6 +192,12 @@ export function inspectProject(input: InspectInput): ProjectInspection {
         'The packaging library was unavailable, so only declared-versus-locked names were compared, not version constraints.',
       severity: 'info',
     });
+    suggestions.push({
+      message:
+        'Install the packaging library in the analysing interpreter to compare declared version constraints against uv.lock.',
+      confidence: 'medium',
+      command: 'python3 -m pip install packaging',
+    });
   }
 
   if (!venvDir) {

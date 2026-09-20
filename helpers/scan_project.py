@@ -446,7 +446,10 @@ def compare_lock(lock: dict, manifest: dict) -> dict:
     try:
         from packaging.requirements import Requirement
         from packaging.version import InvalidVersion, Version
-    except ModuleNotFoundError:
+    except Exception:
+        # `packaging` is an optional analyser dependency. It may be missing, or
+        # present but broken, and either way the scan must continue with the
+        # weaker name-only comparison instead of failing.
         for item in declared:
             if item["normalized"] not in index:
                 report["missingFromLock"].append(item["name"])
@@ -492,7 +495,6 @@ def installed_providers() -> dict:
         }
     except Exception:
         return {}
-
 
 def _is_type_checking_test(test) -> bool:
     """Recognize `if TYPE_CHECKING:` and `if typing.TYPE_CHECKING:` guards.

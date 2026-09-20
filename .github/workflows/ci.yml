@@ -62,8 +62,10 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: false
-      - name: Provide tomllib on Python 3.10
-        run: python -m pip install tomli
+      - name: Provide the optional analyser packages
+        # tomllib needs a backport before 3.11, and constraint comparison needs
+        # packaging. Installing both keeps the strong assertions covered.
+        run: python -m pip install tomli packaging
       - name: Scanner CLI contract
         run: |
           python3 helpers/scan_project.py --help >/dev/null

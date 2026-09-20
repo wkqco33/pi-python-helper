@@ -97,13 +97,23 @@ test('the scanner reports manifest, lock drift, and import classification', asyn
 
     assert.equal(payload.lock?.present, true);
     assert.ok(payload.lockComparison?.missingFromLock.includes('missing-dep'));
-    assert.deepEqual(payload.lockComparison?.unsatisfiedInLock, [
-      { name: 'requests', specifier: '>=2.31', locked: '2.30.0' },
-    ]);
     assert.deepEqual(payload.lockComparison?.requiresPythonMismatch, {
       manifest: '>=3.11',
       lock: '>=3.10',
     });
+
+    // Constraint comparison needs the `packaging` library in the analysing
+    // interpreter. Assert the strong result when it is present and the explicit
+    // degradation when it is not, so the test does not depend on an optional
+    // package being installed in the host environment.
+    if (payload.lockComparison?.specifierCheckAvailable) {
+      assert.deepEqual(payload.lockComparison.unsatisfiedInLock, [
+        { name: 'requests', specifier: '>=2.31', locked: '2.30.0' },
+      ]);
+    } else {
+      assert.deepEqual(payload.lockComparison?.unsatisfiedInLock, []);
+      assert.equal(payload.lockComparison?.checkedCount, 4);
+    }
 
     const imports = payload.imports;
     assert.ok(imports);

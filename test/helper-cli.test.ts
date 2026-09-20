@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runCommand } from '../src/core/runner.ts';
 import {
   HELPER_URL,
@@ -15,6 +18,7 @@ import {
 async function runHelper(
   args: string[],
   stdin = '',
+  env?: NodeJS.ProcessEnv,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const interpreter = await resolveInterpreter(process.cwd());
   assert.ok(interpreter, 'a Python 3 interpreter is required for this test');
@@ -23,6 +27,7 @@ async function runHelper(
     timeoutMs: 30000,
     maxBytes: 512 * 1024,
     stdin,
+    env,
   });
   return { code: run.code, stdout: run.stdout, stderr: run.stderr };
 }
@@ -119,4 +124,43 @@ test('a src directory holding no Python is not reported as a module', async (t) 
   assert.equal(run.code, 0);
   const payload = JSON.parse(run.stdout) as { manifest: { modules: string[] } };
   assert.deepEqual(payload.manifest.modules, []);
+});
+
+test('a broken or missing packaging degrades to name-only comparison', async (t) => {
+  if (!(await helperAvailable())) return t.skip('no Python 3 interpreter available');
+  const root = await mkdtemp(join(tmpdir(), 'py-nopkg-'));
+  const shim = await mkdtemp(join(tmpdir(), 'py-shim-'));
+  try {
+    await writeFile(
+      join(root, 'pyproject.toml'),
+      '[project]\nname = "ledger"\nversion = "0.1.0"\nrequires-python = ">=3.11"\ndependencies = ["requests>=2.31", "missing-dep>=1"]\n',
+    );
+    await writeFile(
+      join(root, 'uv.lock'),
+      'version = 1\nrevision = 2\nrequires-python = ">=3.11"\n\n[[package]]\nname = "requests"\nversion = "2.30.0"\nsource = { registry = "https://pypi.org/simple" }\n',
+    );
+    // Shadow the real module so the optional import fails deterministically.
+    await writeFile(join(shim, 'packaging.py'), 'raise ImportError("blocked for testing")\n');
+
+    const run = await runHelper([], JSON.stringify({ mode: 'manifest', root }), {
+      PYTHONPATH: shim,
+    });
+    assert.equal(run.code, 0, `scanner must still succeed: ${run.stderr}`);
+    const payload = JSON.parse(run.stdout) as {
+      manifest: { name: string };
+      lockComparison: {
+        specifierCheckAvailable: boolean;
+        unsatisfiedInLock: unknown[];
+        missingFromLock: string[];
+      };
+    };
+    assert.equal(payload.manifest.name, 'ledger');
+    assert.equal(payload.lockComparison.specifierCheckAvailable, false);
+    assert.deepEqual(payload.lockComparison.unsatisfiedInLock, []);
+    // The name-only comparison that does not need packaging still runs.
+    assert.deepEqual(payload.lockComparison.missingFromLock, ['missing-dep']);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(shim, { recursive: true, force: true });
+  }
 });

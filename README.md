@@ -112,7 +112,7 @@ npm run test:e2e
 
 이 확장은 로드 시 Python이나 uv가 설치되어 있을 필요가 없습니다. Python 도구는 해석기나 uv를 사용할 수 없을 때 예외를 던지지 않고 구조화된 진단 오류를 반환합니다.
 
-분석은 `helpers/scan_project.py`에 위임합니다. 이 스크립트는 stdin으로 JSON 요청을 받아 stdout으로 JSON을 출력하며 프로젝트를 수정하지 않습니다. import 스캔에는 `ast`, 매니페스트 파싱에는 `tomllib`(Python 3.11+) 또는 `tomli`가 필요하고, 둘 다 없으면 매니페스트 분석이 저하된 상태로 동작함을 명시적으로 경고합니다.
+분석은 `helpers/scan_project.py`에 위임합니다. 이 스크립트는 stdin으로 JSON 요청을 받아 stdout으로 JSON을 출력하며 프로젝트를 수정하지 않습니다. import 스캔에는 `ast`, 매니페스트 파싱에는 `tomllib`(Python 3.11+) 또는 `tomli`가 필요하고, 둘 다 없으면 매니페스트 분석이 저하된 상태로 동작함을 명시적으로 경고합니다. 선언된 버전 제약과 `uv.lock`의 버전을 비교하는 기능은 분석 인터프리터의 `packaging`을 사용하며, 없으면 `SPECIFIER_CHECK_UNAVAILABLE` 노트를 남기고 이름 대조만 수행합니다.
 
 스캐너는 독립 실행도 가능합니다:
 
