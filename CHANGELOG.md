@@ -7,32 +7,6 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
-### Changed
-
-- `py_environment` resolves tool availability from the project environment, PATH, and `uv.lock` instead of running `--version` for every tool. It went from ~210 ms to ~64 ms and now reports the *project's* version from the lockfile instead of the host's.
-- `helpers/scan_project.py` accepts `--mode`, `--root`, `--max-files`, `--help`, and `--version`, validates the requested sections, and separates diagnostics (stderr) from results (stdout). Exit codes are now documented and stable: 0 success, 1 failure, 2 invalid input.
-- The scanner emits `scannerVersion` and the extension refuses to interpret a document from an unknown protocol version.
-- `mode` accepts a comma-separated section list, so a caller can request `environment,manifest` without running the import scan.
-- `tsconfig.json` enables `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride`, and `noFallthroughCasesInSwitch`.
-
-### Fixed
-
-- A directory under `src/` is only reported as an importable module when it actually contains Python code. A TypeScript tree under `src/` was previously listed as a Python package's modules.
-- Removed dead declarations in `src/build/failure.ts` and an unused import in `src/project/paths.ts`, both surfaced by the stricter compiler settings.
-
-### Added
-
-- `docs/tools.md`, a generated tool reference, and `docs/api-surface.json`, a
-  structure-only snapshot of every tool's parameters and return payload.
-  `npm run docs` regenerates both and `npm run docs:check` verifies the document
-  is current.
-- `test/api-surface.test.ts` guards the public surface: the exact tool set, the
-  parameter schemas, the captured return shapes, and the freshness of the
-  reference document. Adding or renaming a tool also requires editing
-  `EXPECTED_TOOLS`, so a surface change is always deliberate.
-- `CONTRIBUTING.md` and a release workflow that publishes to npm with provenance after verifying the tag matches `package.json`.
-- Tests for the environment probe (`test/environment.test.ts`) and the scanner CLI contract (`test/helper-cli.test.ts`), and a Python 3.10–3.13 CI matrix.
-
 ## [0.1.0] - 2026-09-21
 
 ### Added
@@ -54,9 +28,23 @@ does not guarantee a stable public tool schema.
 - `helpers/scan_project.py` provides read-only `ast` import scanning and `tomllib` manifest parsing.
 - Risk classification for shell commands, including compound-command segment inheritance and pipe-to-shell detection.
 - `npm run test:e2e` verifies the scanner, pytest parser, failure diagnoser, and uv command builders against a real uv project.
+- `docs/tools.md`, a generated tool reference, and `docs/api-surface.json`, a structure-only snapshot of every tool's parameters and return payload.
+- `test/api-surface.test.ts` guards the public surface: the exact tool set, the parameter schemas, the captured return shapes, and the freshness of the reference document.
+- `CONTRIBUTING.md` and a release workflow that publishes to npm with provenance after verifying the tag matches `package.json`.
+- Tests for the environment probe (`test/environment.test.ts`) and the scanner CLI contract (`test/helper-cli.test.ts`), and a Python 3.10–3.13 CI matrix.
+
+### Changed
+
+- `py_environment` resolves tool availability from the project environment, PATH, and `uv.lock` instead of running `--version` for every tool. It went from ~210 ms to ~64 ms and now reports the *project's* version from the lockfile instead of the host's.
+- `helpers/scan_project.py` accepts `--mode`, `--root`, `--max-files`, `--help`, and `--version`, validates the requested sections, and separates diagnostics (stderr) from results (stdout). Exit codes are now documented and stable: 0 success, 1 failure, 2 invalid input.
+- The scanner emits `scannerVersion` and the extension refuses to interpret a document from an unknown protocol version.
+- `mode` accepts a comma-separated section list, so a caller can request `environment,manifest` without running the import scan.
+- `tsconfig.json` enables `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride`, and `noFallthroughCasesInSwitch`.
 
 ### Fixed
 
+- A directory under `src/` is only reported as an importable module when it actually contains Python code. A TypeScript tree under `src/` was previously listed as a Python package's modules.
+- Removed dead declarations in `src/build/failure.ts` and an unused import in `src/project/paths.ts`, both surfaced by the stricter compiler settings.
 - `helpers/scan_project.py` no longer aborts the whole scan when a directory cannot be stat-ed. Layout detection, legacy manifest probing, and requirement discovery now degrade to "absent" instead of raising `PermissionError` (reproduced against `/tmp`, which contains a root-owned sibling).
 - An unexpected scanner exception is now reported as structured JSON instead of a bare traceback on stderr.
 - `py_failure_diagnose` now recognises pytest `--tb=short` frames (`path:line: in func`) and `E `-prefixed exception lines, which previously left real failures unclassified with no project frame.

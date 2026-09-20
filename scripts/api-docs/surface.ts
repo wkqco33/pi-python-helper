@@ -156,9 +156,10 @@ export interface CapturePreconditions {
   reason?: string;
 }
 
-/** Capture needs a Python 3 interpreter (the scanner) and uv (for its version). */
+/** Capture needs a Python 3 interpreter (the scanner), uv (for its version), and packaging (for specifier comparison). */
 export async function capturePreconditions(): Promise<CapturePreconditions> {
-  if (!(await resolveInterpreter(process.cwd()))) {
+  const interpreter = await resolveInterpreter(process.cwd());
+  if (!interpreter) {
     return { ok: false, reason: 'no Python 3 interpreter is available to run the scanner' };
   }
   const uv = await runCommand('uv', ['--version'], {
@@ -170,6 +171,21 @@ export async function capturePreconditions(): Promise<CapturePreconditions> {
     return {
       ok: false,
       reason: 'uv is not installed, so py_environment would report a different shape',
+    };
+  }
+  const packaging = await runCommand(
+    interpreter,
+    ['-c', 'import packaging.requirements, packaging.version'],
+    {
+      cwd: process.cwd(),
+      timeoutMs: 10000,
+      maxBytes: 4096,
+    },
+  );
+  if (packaging.code !== 0) {
+    return {
+      ok: false,
+      reason: 'the Python packaging package is not installed, so specifier comparison cannot run',
     };
   }
   return { ok: true };

@@ -19,6 +19,9 @@
     "url": "https://github.com/wkqco33/pi-python-helper/issues"
   },
   "homepage": "https://github.com/wkqco33/pi-python-helper#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "extensions",
     "src",
