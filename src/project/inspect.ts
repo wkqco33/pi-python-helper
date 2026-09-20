@@ -5,7 +5,7 @@ import {
   type ConformanceReport,
 } from './conformance.ts';
 import type { InstalledEnvironment } from './installed.ts';
-import type { ScanPayload } from './scanner.ts';
+import type { LockComparison, LockSection, ManifestSection, ScanPayload } from './scanner.ts';
 
 export interface ProjectInspection {
   root: string;
@@ -48,60 +48,56 @@ export interface InspectInput {
   installed?: InstalledEnvironment;
 }
 
-/**
- * Turn a scanner payload into a project model plus diagnostics. Pure so the
- * whole diagnostic surface is unit-testable without touching a filesystem.
- */
-export function inspectProject(input: InspectInput): ProjectInspection {
-  const { payload, venvDir, venvIgnored, hasTestsDirectory, installed } = input;
-  const manifest = payload.manifest;
-  const lock = payload.lock;
-  const comparison = payload.lockComparison;
-  const warnings: Diagnostic[] = [];
-  const notes: Diagnostic[] = [];
-  const suggestions: Suggestion[] = [];
+interface DiagnosticCollector {
+  warnings: Diagnostic[];
+  notes: Diagnostic[];
+  suggestions: Suggestion[];
+}
 
-  const root = payload.root;
+function collectManifestDiagnostics(
+  manifest: ManifestSection | null | undefined,
+  root: string,
+  collector: DiagnosticCollector,
+): void {
   if (manifest?.tomlError) {
-    warnings.push(
+    collector.warnings.push(
       warn('TOML_PARSE_ERROR', manifest.tomlError, manifest.pyprojectPath ?? undefined),
     );
   }
   for (const message of manifest?.warnings ?? []) {
-    warnings.push(warn('MANIFEST_WARNING', message, manifest?.pyprojectPath ?? undefined));
-  }
-  for (const message of lock?.warnings ?? []) {
-    notes.push({ code: 'LOCKFILE_NOTE', message, severity: 'info' });
+    collector.warnings.push(
+      warn('MANIFEST_WARNING', message, manifest?.pyprojectPath ?? undefined),
+    );
   }
 
   if (!manifest?.pyprojectPath) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'PYPROJECT_MISSING',
         'pyproject.toml was not found; dependencies, layout, and tool configuration cannot be verified.',
       ),
     );
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Run uv init to create a pyproject.toml, then uv add the runtime dependencies.',
       confidence: 'high',
       command: 'uv init',
     });
   } else if (!manifest.name) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'PROJECT_NAME_MISSING',
         'pyproject.toml has no [project] name, so the installed distribution name is unknown.',
         manifest.pyprojectPath ?? undefined,
       ),
     );
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Add a [project] table with name and version to pyproject.toml.',
       confidence: 'high',
     });
   }
 
   if (manifest?.legacySetupPy || manifest?.legacySetupCfg) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'LEGACY_PACKAGING',
         `The project still uses ${[
@@ -113,14 +109,14 @@ export function inspectProject(input: InspectInput): ProjectInspection {
         root,
       ),
     );
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Move dependency metadata from setup.py/setup.cfg into [project] in pyproject.toml.',
       confidence: 'medium',
     });
   }
 
   if (manifest?.requirementsFiles.length && manifest.pyprojectPath) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'DUPLICATE_DEPENDENCY_SOURCE',
         `${manifest.requirementsFiles.join(', ')} also declares dependencies; uv resolves from pyproject.toml and uv.lock only.`,
@@ -129,14 +125,31 @@ export function inspectProject(input: InspectInput): ProjectInspection {
     );
   }
 
+  if (manifest?.legacySetupPy && manifest.buildBackend === null && !manifest.pyprojectPath) {
+    collector.suggestions.push({
+      message: 'uv manages dependencies from pyproject.toml; migrate before running uv sync.',
+      confidence: 'medium',
+    });
+  }
+}
+
+function collectLockDiagnostics(
+  lock: LockSection | null | undefined,
+  comparison: LockComparison | null | undefined,
+  collector: DiagnosticCollector,
+): void {
+  for (const message of lock?.warnings ?? []) {
+    collector.notes.push({ code: 'LOCKFILE_NOTE', message, severity: 'info' });
+  }
+
   if (!lock?.present) {
-    notes.push({
+    collector.notes.push({
       code: 'LOCKFILE_MISSING',
       message:
         'uv.lock was not found, so dependency drift and exact resolved versions cannot be verified.',
       severity: 'info',
     });
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Run uv lock to record resolved versions in uv.lock.',
       confidence: 'high',
       command: 'uv lock',
@@ -144,14 +157,14 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   if (comparison?.requiresPythonMismatch) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'REQUIRES_PYTHON_MISMATCH',
         `pyproject.toml requires-python is "${comparison.requiresPythonMismatch.manifest}" but uv.lock records "${comparison.requiresPythonMismatch.lock}".`,
         lock?.path ?? undefined,
       ),
     );
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Run uv lock so the lockfile reflects the current requires-python constraint.',
       confidence: 'high',
       command: 'uv lock',
@@ -159,7 +172,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   for (const name of comparison?.missingFromLock ?? []) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'LOCKFILE_MISSING_DEPENDENCY',
         `"${name}" is declared in pyproject.toml but absent from uv.lock.`,
@@ -168,7 +181,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
     );
   }
   if (comparison?.missingFromLock.length) {
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Run uv lock to add the missing declarations to the lockfile.',
       confidence: 'high',
       command: 'uv lock',
@@ -176,7 +189,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   for (const entry of comparison?.unsatisfiedInLock ?? []) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'LOCKFILE_UNSATISFIED_DEPENDENCY',
         `"${entry.name}" is locked at ${entry.locked} which does not satisfy "${entry.specifier}".`,
@@ -186,42 +199,51 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   if (lock?.present && comparison && !comparison.specifierCheckAvailable) {
-    notes.push({
+    collector.notes.push({
       code: 'SPECIFIER_CHECK_UNAVAILABLE',
       message:
         'The packaging library was unavailable, so only declared-versus-locked names were compared, not version constraints.',
       severity: 'info',
     });
-    suggestions.push({
+    collector.suggestions.push({
       message:
         'Install the packaging library in the analysing interpreter to compare declared version constraints against uv.lock.',
       confidence: 'medium',
       command: 'python3 -m pip install packaging',
     });
   }
+}
 
+function collectEnvironmentDiagnostics(
+  root: string,
+  manifest: ManifestSection | null | undefined,
+  venvDir: string | undefined,
+  venvIgnored: boolean | undefined,
+  hasTestsDirectory: boolean,
+  collector: DiagnosticCollector,
+): void {
   if (!venvDir) {
-    notes.push({
+    collector.notes.push({
       code: 'VENV_MISSING',
       message: 'No .venv directory exists at the project root; run uv sync before running tests.',
       severity: 'info',
     });
   } else if (venvIgnored === false) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'VENV_NOT_IGNORED',
         '.venv exists but is not listed in .gitignore.',
         `${root}/.gitignore`,
       ),
     );
-    suggestions.push({
+    collector.suggestions.push({
       message: 'Add .venv/ to .gitignore so the environment is never committed.',
       confidence: 'high',
     });
   }
 
   if (!hasTestsDirectory) {
-    notes.push({
+    collector.notes.push({
       code: 'TESTS_DIRECTORY_MISSING',
       message:
         'No tests/ directory was found; test selection and TDD gates cannot match changed sources.',
@@ -230,7 +252,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   if (manifest?.pyprojectPath && manifest.toolConfiguration && !manifest.toolConfiguration.pytest) {
-    notes.push({
+    collector.notes.push({
       code: 'PYTEST_NOT_CONFIGURED',
       message: 'pyproject.toml has no [tool.pytest.ini_options] table.',
       severity: 'info',
@@ -238,7 +260,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   }
 
   if (manifest?.layout === 'src' && manifest.modules.length === 0) {
-    warnings.push(
+    collector.warnings.push(
       warn(
         'EMPTY_SRC_LAYOUT',
         'The src/ directory exists but contains no importable module directories or modules.',
@@ -247,20 +269,32 @@ export function inspectProject(input: InspectInput): ProjectInspection {
     );
   }
 
-  if (manifest?.legacySetupPy && manifest.buildBackend === null && !manifest.pyprojectPath) {
-    suggestions.push({
-      message: 'uv manages dependencies from pyproject.toml; migrate before running uv sync.',
-      confidence: 'medium',
-    });
-  }
-
   if (manifest?.uvWorkspaceMembers.length) {
-    notes.push({
+    collector.notes.push({
       code: 'UV_WORKSPACE',
       message: `This is a uv workspace with ${manifest.uvWorkspaceMembers.length} member(s); scope build and test tools per member.`,
       severity: 'info',
     });
   }
+}
+
+/**
+ * Turn a scanner payload into a project model plus diagnostics. Pure so the
+ * whole diagnostic surface is unit-testable without touching a filesystem.
+ */
+export function inspectProject(input: InspectInput): ProjectInspection {
+  const { payload, venvDir, venvIgnored, hasTestsDirectory, installed } = input;
+  const manifest = payload.manifest;
+  const lock = payload.lock;
+  const comparison = payload.lockComparison;
+  const root = payload.root;
+
+  const collector: DiagnosticCollector = { warnings: [], notes: [], suggestions: [] };
+  collectManifestDiagnostics(manifest, root, collector);
+  collectLockDiagnostics(lock, comparison, collector);
+  collectEnvironmentDiagnostics(root, manifest, venvDir, venvIgnored, hasTestsDirectory, collector);
+
+  const { warnings, notes, suggestions } = collector;
 
   const conformance =
     installed !== undefined
