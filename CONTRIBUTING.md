@@ -39,6 +39,27 @@ pi -e ./extensions/index.ts --list-models
 - 환경 정합성 로직을 바꾸면 `test/conformance.test.ts`(순수 비교)와 `test/installed.test.ts`(파일시스템 리더)를 모두 갱신하고, 마커 조건부 항목에 대한 회귀 테스트를 남기세요.
 - 커밋 전 `npm test`, `npm run typecheck`, `npm run check`를 실행하세요. Python이 없는 환경이라는 이유로 검증 강도를 약화하지 말고 해당 테스트를 `t.skip()`으로 건너뛰세요.
 
+## 도구 레퍼런스 (Tool reference)
+
+`docs/tools.md`는 생성 파일입니다. 도구의 이름, 설명, `promptSnippet`, `promptGuidelines`, 파라미터 스키마를 변경하면 반드시 다시 생성하세요.
+
+```bash
+npm run docs
+```
+
+- `docs/api-surface.json` — 반환 형태 스냅샷. 구조만 기록하고 값·경로·버전·소요시간은 제외하므로 머신과 릴리스 간에 안정적입니다.
+- `docs/tools.md` — 위 스냅샷과 실시간 등록 정보로 렌더링한 사람이 읽는 레퍼런스.
+- 스냅샷 캡처는 python3와 uv가 필요합니다. 둘 중 하나라도 없으면 스냅샷은 도구 목록과 파라미터만 담고 반환 형태는 비워둡니다(경고 출력). CI의 `python-scanner` job이 두 가지를 모두 갖춘 상태에서 반환 형태를 검증합니다.
+
+`test/api-surface.test.ts`가 다음을 강제합니다.
+
+1. 등록된 도구 집합이 명시적 목록과 일치
+2. 파라미터 스키마가 스냅샷과 일치
+3. `docs/tools.md`가 최신
+4. 캡처한 반환 형태가 스냅샷과 일치
+
+도구를 추가·이름 변경·제거하는 것은 에이전트 프롬프트와 레퍼런스에 대한 파괴적 변경이므로, 테스트의 `EXPECTED_TOOLS` 목록도 함께 수정해야 합니다.
+
 ## 커밋과 릴리스 (Commits and releases)
 
 `feat:`, `fix:`, `test:`, `docs:`, `chore:` 등 Conventional Commits를 사용하세요.

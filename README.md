@@ -110,6 +110,15 @@ npm run check
 npm run test:e2e
 ```
 
+도구의 공개 표면(이름·파라미터·반환 형태)을 변경하면 레퍼런스 문서를 다시 생성해야 합니다:
+
+```bash
+npm run docs         # docs/tools.md + docs/api-surface.json 재생성
+npm run docs:check   # 문서가 최신인지만 확인
+```
+
+`docs/tools.md`는 생성 파일이므로 직접 편집하지 마세요. `npm test`가 도구 집합·파라미터 스키마·반환 형태·문서 최신성을 모두 검증하며, 문서가 오래되면 테스트가 실패합니다.
+
 이 확장은 로드 시 Python이나 uv가 설치되어 있을 필요가 없습니다. Python 도구는 해석기나 uv를 사용할 수 없을 때 예외를 던지지 않고 구조화된 진단 오류를 반환합니다.
 
 분석은 `helpers/scan_project.py`에 위임합니다. 이 스크립트는 stdin으로 JSON 요청을 받아 stdout으로 JSON을 출력하며 프로젝트를 수정하지 않습니다. import 스캔에는 `ast`, 매니페스트 파싱에는 `tomllib`(Python 3.11+) 또는 `tomli`가 필요하고, 둘 다 없으면 매니페스트 분석이 저하된 상태로 동작함을 명시적으로 경고합니다. 선언된 버전 제약과 `uv.lock`의 버전을 비교하는 기능은 분석 인터프리터의 `packaging`을 사용하며, 없으면 `SPECIFIER_CHECK_UNAVAILABLE` 노트를 남기고 이름 대조만 수행합니다.
@@ -145,7 +154,7 @@ python3 helpers/scan_project.py --mode environment,manifest --root . </dev/null
 - 정적 프로젝트/의존성 분석 도구는 uv나 `.venv` 없이도 작동합니다.
 - 라이선스: Apache-2.0
 
-릴리스 이력은 `CHANGELOG.md`, 개발 규칙은 `AGENTS.md`와 `CONTRIBUTING.md`, 지원 런타임 및 성능 정보는 `docs/compatibility.md`, 취약점 보고는 `SECURITY.md`를 참고하세요.
+릴리스 이력은 `CHANGELOG.md`, 도구 레퍼런스는 `docs/tools.md`, 개발 규칙은 `AGENTS.md`와 `CONTRIBUTING.md`, 지원 런타임 및 성능 정보는 `docs/compatibility.md`, 취약점 보고는 `SECURITY.md`를 참고하세요.
 
 릴리스는 `v<version>` 태그를 푸시하면 `.github/workflows/publish.yml`이 태그와 `package.json` 버전을 검증한 뒤 npm provenance와 함께 배포합니다.
 

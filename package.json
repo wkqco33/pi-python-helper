@@ -24,7 +24,8 @@
     "src",
     "helpers",
     "skills",
-    "docs",
+    "docs/compatibility.md",
+    "docs/tools.md",
     "README.md",
     "LICENSE",
     "SECURITY.md",
@@ -36,10 +37,12 @@
     "test": "tsx --test test/*.test.ts",
     "test:coverage": "tsx --test --experimental-test-coverage test/*.test.ts",
     "test:e2e": "tsx test/manual/e2e-uv.ts",
-    "format": "prettier --write \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\"",
-    "format:check": "prettier --check \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\"",
+    "docs": "tsx scripts/generate-api-surface.ts && tsx scripts/generate-tools-doc.ts",
+    "docs:check": "tsx scripts/check-docs.ts",
+    "format": "prettier --write \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
+    "format:check": "prettier --check \"extensions/**/*.ts\" \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "pack-check": "npm pack --dry-run",
-    "check": "npm test && npm run typecheck && npm run format:check && npm run pack-check"
+    "check": "npm test && npm run typecheck && npm run format:check && npm run docs:check && npm run pack-check"
   },
   "pi": {
     "extensions": [

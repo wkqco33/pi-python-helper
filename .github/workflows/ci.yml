@@ -92,6 +92,9 @@ jobs:
         run: |
           npx tsx --test test/helper-cli.test.ts
           npx tsx --test test/scanner-integration.test.ts
+          # Enforced here rather than in the Node jobs because capturing return
+          # shapes needs both python3 and uv.
+          npx tsx --test test/api-surface.test.ts
 
   extension-smoke:
     name: pi extension smoke test

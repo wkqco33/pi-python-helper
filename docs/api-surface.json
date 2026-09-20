@@ -1,0 +1,4644 @@
+{
+  "generator": "scripts/generate-api-surface.ts",
+  "note": "Structure only: values, paths, durations, and versions are deliberately excluded so the snapshot is stable across machines and releases.",
+  "tools": {
+    "py_completion_evidence": {
+      "label": "Python Completion Evidence",
+      "parameters": {
+        "changedPaths": {
+          "type": "array<string>",
+          "required": true,
+          "constraints": "maxItems 500"
+        },
+        "stale": {
+          "type": "boolean",
+          "required": true,
+          "description": "Whether stale artifacts were detected."
+        },
+        "syncExecuted": {
+          "type": "boolean",
+          "required": true,
+          "description": "Whether uv lock --check / uv sync actually ran."
+        },
+        "syncOk": {
+          "type": "boolean",
+          "required": true
+        },
+        "testExecuted": {
+          "type": "boolean",
+          "required": true,
+          "description": "Whether pytest actually ran."
+        },
+        "testOk": {
+          "type": "boolean",
+          "required": true
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "blockers",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "changedPaths",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "ok",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "py_dependency_plan": {
+      "label": "Python Dependency Plan",
+      "parameters": {
+        "includeUnused": {
+          "type": "boolean",
+          "required": false,
+          "description": "Also report declared packages that no file imports. Off by default because runtime plugins and console tools produce false positives."
+        },
+        "path": {
+          "type": "string",
+          "required": false,
+          "description": "Project directory to analyse."
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "declared",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "groups",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "name",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "normalized",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "declaredCount",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "number"
+            }
+          },
+          {
+            "key": "drift",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "lockPresent",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "missingFromLock",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                },
+                {
+                  "key": "requiresPythonMismatch",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "null"
+                  }
+                },
+                {
+                  "key": "unsatisfiedInLock",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "locked",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "name",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "specifier",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "misplaced",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "declaredIn",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "distribution",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "import",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "runtimeFiles",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "notes",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "code",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "severity",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "providerMappingReliable",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "suggestions",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "command",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "confidence",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "thirdPartyImportCount",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "number"
+            }
+          },
+          {
+            "key": "undeclared",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "fileCount",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "files",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "import",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "providers",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "unknown"
+                      }
+                    }
+                  },
+                  {
+                    "key": "reason",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "suggestedDistribution",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "typeCheckingOnly",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "unparsable",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "unused",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "groups",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "name",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "normalized",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "warnings",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "code",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "path",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "severity",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "py_environment": {
+      "label": "Python Environment",
+      "parameters": {},
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "interpreter",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "projectRoot",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "python",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "basePrefix",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "candidateVenvDir",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "condaPrefix",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "null"
+                  }
+                },
+                {
+                  "key": "executable",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "implementation",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "inVirtualEnvironment",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "platform",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "prefix",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "stdlibModuleNames",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "tomlAvailable",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "version",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "versionInfo",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  }
+                },
+                {
+                  "key": "virtualEnv",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "null"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "suggestions",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "tools",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "available",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "declared",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "executable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "name",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "origin",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "preferredInvocation",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "version",
+                    "optional": true,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "versionSource",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "uv",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "available",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "lockPresent",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "version",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "venvDir",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "warnings",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "py_failure_diagnose": {
+      "label": "Python Failure Diagnose",
+      "parameters": {
+        "output": {
+          "type": "string",
+          "required": true,
+          "description": "Bounded stdout/stderr from the failing command."
+        },
+        "path": {
+          "type": "string",
+          "required": false,
+          "description": "Project directory used to classify the missing module."
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "evidence",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "file",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "line",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "exceptionType",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "firstUserFrame",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "func",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "library",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "line",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "number"
+                  }
+                },
+                {
+                  "key": "path",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "frames",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "func",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "library",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "line",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "path",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "kind",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "libraryFrameCount",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "number"
+            }
+          },
+          {
+            "key": "suggestions",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "confidence",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "summary",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "totalFrameCount",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "number"
+            }
+          }
+        ]
+      }
+    },
+    "py_project_inspect": {
+      "label": "Python Project Inspect",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "required": false,
+          "description": "Project directory, pyproject.toml path, or uv.lock path."
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "buildBackend",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "conformance",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "checks",
+                  "optional": false,
+                  "shape": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "installedScanned",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      },
+                      {
+                        "key": "lockPresent",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      },
+                      {
+                        "key": "projectEditable",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      },
+                      {
+                        "key": "projectInstalled",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      },
+                      {
+                        "key": "venvPresent",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": "complete",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "counts",
+                  "optional": false,
+                  "shape": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "conditional",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "installedPackages",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "lockPackages",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "mismatched",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "missing",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "untracked",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": "findings",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "code",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "expected",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "message",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "name",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "key": "notes",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "primitive",
+                      "name": "unknown"
+                    }
+                  }
+                },
+                {
+                  "key": "reason",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "verdict",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "warnings",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "code",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "message",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        },
+                        {
+                          "key": "severity",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "string"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "dependencyCounts",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "groups",
+                  "optional": false,
+                  "shape": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "dev",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": "optional",
+                  "optional": false,
+                  "shape": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "aws",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": "runtime",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "number"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "entryPoints",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "importName",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "installed",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "count",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "number"
+                  }
+                },
+                {
+                  "key": "editableCount",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "number"
+                  }
+                },
+                {
+                  "key": "sitePackages",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "layout",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "lock",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "packageCount",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "number"
+                  }
+                },
+                {
+                  "key": "path",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "present",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "modules",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "name",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "notes",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "pyproject",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "requirementsFiles",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "requiresPython",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "root",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "suggestions",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "command",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "confidence",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "toolConfiguration",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "coverage",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "hatch",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "mypy",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "pyright",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "pytest",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "ruff",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                },
+                {
+                  "key": "ty",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "boolean"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "uvLock",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "uvSources",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "uvWorkspaceMembers",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "venvDir",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "version",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "warnings",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "code",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "path",
+                    "optional": true,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "severity",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "py_sync": {
+      "label": "Python Sync",
+      "parameters": {
+        "execute": {
+          "type": "boolean",
+          "required": false
+        },
+        "mode": {
+          "type": "\"check\" | \"sync\"",
+          "required": false,
+          "description": "check runs uv lock --check; sync runs uv sync --frozen --all-groups."
+        },
+        "path": {
+          "type": "string",
+          "required": false
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "required": false,
+          "constraints": "1..1800"
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "command",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "args",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                },
+                {
+                  "key": "cwd",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "executable",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "risk",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "executed",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "lockPresent",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "mode",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          }
+        ]
+      }
+    },
+    "py_tdd_checkpoint": {
+      "label": "Python TDD Checkpoint",
+      "parameters": {
+        "changedPaths": {
+          "type": "array<string>",
+          "required": false,
+          "constraints": "maxItems 500"
+        },
+        "testChangedPaths": {
+          "type": "array<string>",
+          "required": false,
+          "constraints": "maxItems 500"
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "changedPaths",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "ok",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "reasons",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "source",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "sourceChanges",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "testChanges",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "py_test": {
+      "label": "Python Test",
+      "parameters": {
+        "execute": {
+          "type": "boolean",
+          "required": false
+        },
+        "keyword": {
+          "type": "string",
+          "required": false,
+          "description": "pytest -k expression."
+        },
+        "lastFailed": {
+          "type": "boolean",
+          "required": false,
+          "description": "Rerun only tests that failed last time (--lf)."
+        },
+        "maxFail": {
+          "type": "integer",
+          "required": false,
+          "constraints": "1..1000"
+        },
+        "path": {
+          "type": "string",
+          "required": false
+        },
+        "targets": {
+          "type": "array<string>",
+          "required": false
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "required": false,
+          "constraints": "1..3600"
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "command",
+            "optional": false,
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "args",
+                  "optional": false,
+                  "shape": {
+                    "kind": "array",
+                    "items": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                },
+                {
+                  "key": "cwd",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "executable",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                },
+                {
+                  "key": "risk",
+                  "optional": false,
+                  "shape": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "key": "executed",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          }
+        ]
+      }
+    },
+    "py_test_select": {
+      "label": "Python Test Select",
+      "parameters": {
+        "changedPaths": {
+          "type": "array<string>",
+          "required": false,
+          "description": "Changed paths; defaults to git diff plus untracked files."
+        },
+        "path": {
+          "type": "string",
+          "required": false,
+          "description": "Project directory to scan for test files."
+        },
+        "testFiles": {
+          "type": "array<string>",
+          "required": false,
+          "description": "Known test files; defaults to a project scan."
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "changedSourceFiles",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "changedTestFiles",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
+          {
+            "key": "consideredTestFiles",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "fellBackToAll",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "pytestTargets",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            }
+          },
+          {
+            "key": "selected",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "path",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "reason",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "score",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "py_validation_bundle": {
+      "label": "Python Validation Bundle",
+      "parameters": {
+        "execute": {
+          "type": "boolean",
+          "required": false
+        },
+        "path": {
+          "type": "string",
+          "required": false
+        },
+        "targets": {
+          "type": "array<string>",
+          "required": false
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "required": false,
+          "constraints": "1..3600"
+        }
+      },
+      "data": {
+        "kind": "object",
+        "fields": [
+          {
+            "key": "executed",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "lockPresent",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "steps",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "args",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "cwd",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "executable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "risk",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "capture": {
+    "py_environment": {},
+    "py_project_inspect": {},
+    "py_dependency_plan": {
+      "includeUnused": true
+    },
+    "py_tdd_checkpoint": {
+      "changedPaths": [
+        "src/ledger/totals.py",
+        "tests/test_other.py"
+      ]
+    },
+    "py_completion_evidence": {
+      "syncExecuted": false,
+      "syncOk": false,
+      "testExecuted": false,
+      "testOk": false,
+      "stale": false,
+      "changedPaths": [
+        "src/ledger/totals.py"
+      ]
+    },
+    "py_test_select": {
+      "changedPaths": [
+        "src/ledger/totals.py"
+      ]
+    },
+    "py_test": {
+      "execute": false
+    },
+    "py_failure_diagnose": {
+      "output": "============================= test session starts ==============================\ncollected 2 items\n\ntests/test_totals.py F                                                   [ 50%]\n\n=================================== FAILURES ===================================\n_________________________________ test_total __________________________________\n\ntests/test_totals.py:4: in test_total\n    assert total([1, 2]) == 3\nE   NameError: name 'total' is not defined\n=========================== short test summary info ============================\nFAILED tests/test_totals.py::test_total - NameError: name 'total' is not defined\n========================= 1 failed, 1 passed in 0.21s =========================\n"
+    },
+    "py_sync": {
+      "mode": "check",
+      "execute": false
+    },
+    "py_validation_bundle": {
+      "execute": false
+    }
+  },
+  "envelope": {
+    "kind": "object",
+    "fields": [
+      {
+        "key": "commands",
+        "optional": true,
+        "shape": {
+          "kind": "array",
+          "items": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "args",
+                "optional": false,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "cwd",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "executable",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "risk",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "data",
+        "optional": false,
+        "shape": {
+          "kind": "object",
+          "fields": [
+            {
+              "key": "blockers",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "buildBackend",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "changedPaths",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "changedSourceFiles",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "changedTestFiles",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "command",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "args",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "cwd",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "executable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "risk",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "conformance",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "checks",
+                    "optional": false,
+                    "shape": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "installedScanned",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        },
+                        {
+                          "key": "lockPresent",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        },
+                        {
+                          "key": "projectEditable",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        },
+                        {
+                          "key": "projectInstalled",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        },
+                        {
+                          "key": "venvPresent",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "complete",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "counts",
+                    "optional": false,
+                    "shape": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "conditional",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "installedPackages",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "lockPackages",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "mismatched",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "missing",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "untracked",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "findings",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "object",
+                        "fields": [
+                          {
+                            "key": "code",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "expected",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "message",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "name",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "key": "notes",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "unknown"
+                      }
+                    }
+                  },
+                  {
+                    "key": "reason",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "verdict",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "warnings",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "object",
+                        "fields": [
+                          {
+                            "key": "code",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "message",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "severity",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "consideredTestFiles",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "declared",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "groups",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "name",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "normalized",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "declaredCount",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
+              }
+            },
+            {
+              "key": "dependencyCounts",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "groups",
+                    "optional": false,
+                    "shape": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "dev",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "optional",
+                    "optional": false,
+                    "shape": {
+                      "kind": "object",
+                      "fields": [
+                        {
+                          "key": "aws",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": "runtime",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "drift",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "lockPresent",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "missingFromLock",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  },
+                  {
+                    "key": "requiresPythonMismatch",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "null"
+                    }
+                  },
+                  {
+                    "key": "unsatisfiedInLock",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "object",
+                        "fields": [
+                          {
+                            "key": "locked",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "name",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          },
+                          {
+                            "key": "specifier",
+                            "optional": false,
+                            "shape": {
+                              "kind": "primitive",
+                              "name": "string"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "entryPoints",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "evidence",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "file",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "line",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "message",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "exceptionType",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "executed",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "fellBackToAll",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "firstUserFrame",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "func",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "library",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "line",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "path",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "frames",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "func",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "library",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "line",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "path",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "importName",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "installed",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "count",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "editableCount",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "sitePackages",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "interpreter",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "kind",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "layout",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "libraryFrameCount",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
+              }
+            },
+            {
+              "key": "lock",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "packageCount",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "number"
+                    }
+                  },
+                  {
+                    "key": "path",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "present",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "lockPresent",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "misplaced",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "declaredIn",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "distribution",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "import",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "runtimeFiles",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "mode",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "modules",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "name",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "notes",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "code",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "message",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "severity",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "ok",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "projectRoot",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "providerMappingReliable",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "pyproject",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "pytestTargets",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "python",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "basePrefix",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "candidateVenvDir",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "condaPrefix",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "null"
+                    }
+                  },
+                  {
+                    "key": "executable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "implementation",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "inVirtualEnvironment",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "platform",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "prefix",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "stdlibModuleNames",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "tomlAvailable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "version",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "versionInfo",
+                    "optional": false,
+                    "shape": {
+                      "kind": "array",
+                      "items": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    }
+                  },
+                  {
+                    "key": "virtualEnv",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "null"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "reasons",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "requirementsFiles",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "requiresPython",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "root",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "selected",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "path",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "reason",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "score",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "source",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "sourceChanges",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "steps",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "args",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "cwd",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "executable",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "risk",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "suggestions",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "command",
+                      "optional": true,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "confidence",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "message",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "summary",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "testChanges",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
+              "key": "thirdPartyImportCount",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
+              }
+            },
+            {
+              "key": "toolConfiguration",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "coverage",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "hatch",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "mypy",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "pyright",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "pytest",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "ruff",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "ty",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "tools",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "available",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "declared",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "executable",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "name",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "origin",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "preferredInvocation",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "version",
+                      "optional": true,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "versionSource",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "totalFrameCount",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
+              }
+            },
+            {
+              "key": "undeclared",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "fileCount",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "files",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "import",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "providers",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "unknown"
+                        }
+                      }
+                    },
+                    {
+                      "key": "reason",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "suggestedDistribution",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "typeCheckingOnly",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "unparsable",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "unused",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "groups",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "name",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "normalized",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "key": "uv",
+              "optional": true,
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "available",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "lockPresent",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "version",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "key": "uvLock",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "uvSources",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "uvWorkspaceMembers",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
+              "key": "venvDir",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "version",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "warnings",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "code",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "message",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "path",
+                      "optional": true,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "severity",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "key": "errors",
+        "optional": false,
+        "shape": {
+          "kind": "array",
+          "items": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "code",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "line",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "message",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "path",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "severity",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "evidence",
+        "optional": false,
+        "shape": {
+          "kind": "array",
+          "items": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "args",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "changedSourceFiles",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "changedTestFiles",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "unknown"
+                  }
+                }
+              },
+              {
+                "key": "complete",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
+                }
+              },
+              {
+                "key": "counts",
+                "optional": true,
+                "shape": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "conditional",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "installedPackages",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "lockPackages",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "mismatched",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "missing",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "untracked",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "cwd",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "executable",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "failureKind",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "fellBackToAll",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
+                }
+              },
+              {
+                "key": "file",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "findings",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "firstUserFrame",
+                "optional": true,
+                "shape": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "func",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    },
+                    {
+                      "key": "library",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "line",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
+                      "key": "path",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "inVirtualEnvironment",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
+                }
+              },
+              {
+                "key": "installedPackages",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "interpreter",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "kind",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "layout",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "libraryFrameCount",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "line",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "lockedPackages",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "lockfileDrift",
+                "optional": true,
+                "shape": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "lockPresent",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "missingFromLock",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    },
+                    {
+                      "key": "requiresPythonMismatch",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "null"
+                      }
+                    },
+                    {
+                      "key": "unsatisfiedInLock",
+                      "optional": false,
+                      "shape": {
+                        "kind": "array",
+                        "items": {
+                          "kind": "primitive",
+                          "name": "unknown"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "message",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "misplaced",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "declaredIn",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "unknown"
+                        }
+                      },
+                      {
+                        "key": "distribution",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      },
+                      {
+                        "key": "import",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "modules",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "projectRoot",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "providerMappingReliable",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
+                }
+              },
+              {
+                "key": "pyproject",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "risk",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "root",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "runtimeDependencies",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "number"
+                }
+              },
+              {
+                "key": "selected",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "path",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      },
+                      {
+                        "key": "reason",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "string"
+                        }
+                      },
+                      {
+                        "key": "score",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "steps",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "undeclared",
+                "optional": true,
+                "shape": {
+                  "kind": "array",
+                  "items": {
+                    "kind": "primitive",
+                    "name": "string"
+                  }
+                }
+              },
+              {
+                "key": "uv",
+                "optional": true,
+                "shape": {
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "available",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "lockPresent",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "version",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "string"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": "uvLock",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "verdict",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "version",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "virtualEnv",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "null"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "metadata",
+        "optional": false,
+        "shape": {
+          "kind": "object",
+          "fields": [
+            {
+              "key": "cwd",
+              "optional": false,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "durationMs",
+              "optional": false,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
+              }
+            },
+            {
+              "key": "projectRoot",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "pythonVersion",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "toolVersion",
+              "optional": false,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "truncated",
+              "optional": false,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "key": "ok",
+        "optional": false,
+        "shape": {
+          "kind": "primitive",
+          "name": "boolean"
+        }
+      },
+      {
+        "key": "projectRoot",
+        "optional": true,
+        "shape": {
+          "kind": "primitive",
+          "name": "string"
+        }
+      },
+      {
+        "key": "pythonVersion",
+        "optional": true,
+        "shape": {
+          "kind": "primitive",
+          "name": "string"
+        }
+      },
+      {
+        "key": "suggestions",
+        "optional": false,
+        "shape": {
+          "kind": "array",
+          "items": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "command",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "confidence",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "message",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "key": "summary",
+        "optional": false,
+        "shape": {
+          "kind": "primitive",
+          "name": "string"
+        }
+      },
+      {
+        "key": "warnings",
+        "optional": false,
+        "shape": {
+          "kind": "array",
+          "items": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "code",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "message",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "path",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              },
+              {
+                "key": "severity",
+                "optional": false,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

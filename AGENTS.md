@@ -54,7 +54,10 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 - Python 3.10 환경에서도 동작해야 하며, `tomllib` 부재 시 저하 상태를 명시적으로 경고하세요.
 
 ## 테스트 규칙 (Testing rules)
-모든 파서, 정규화기, 안전 규칙, 순수 생성기 변경에 대해 단위 테스트를 작성하세요. `helpers/scan_project.py`의 계약을 바꾸면 `test/scanner-integration.test.ts`를 함께 갱신하세요. 환경 정합성 로직을 바꾸면 `test/conformance.test.ts`(순수 비교)와 `test/installed.test.ts`(파일시스템 리더)를 모두 갱신하세요. 정합성은 오탐이 발생하기 쉬운 영역이므로 마커 조건부 항목에 대한 회귀 테스트를 반드시 남기세요.
+
+- 도구의 설명·`promptSnippet`·`promptGuidelines`·파라미터 스키마·반환 `data` 형태를 바꾸면 `npm run docs`를 실행하세요. `test/api-surface.test.ts`가 문서 최신성과 스냅샷 일치를 강제하므로, 재생성하지 않으면 테스트가 실패합니다. 도구를 추가·이름 변경·제거할 때는 `EXPECTED_TOOLS`도 의도적으로 수정하세요.
+- 새 도구는 `description`, `promptSnippet`, 그리고 도구 이름을 포함한 `promptGuidelines`를 가져야 합니다(테스트가 검사합니다).
+- 모든 파서, 정규화기, 안전 규칙, 순수 생성기 변경에 대해 단위 테스트를 작성하세요. `helpers/scan_project.py`의 계약을 바꾸면 `test/scanner-integration.test.ts`를 함께 갱신하세요. 환경 정합성 로직을 바꾸면 `test/conformance.test.ts`(순수 비교)와 `test/installed.test.ts`(파일시스템 리더)를 모두 갱신하세요. 정합성은 오탐이 발생하기 쉬운 영역이므로 마커 조건부 항목에 대한 회귀 테스트를 반드시 남기세요.
 
 커밋 전 반드시 `npm test`, `npm run typecheck`, `npm run check`를 실행하세요. Python이 없는 환경이라는 이유로 검증 강도를 약화하지 마세요. Python 해석기를 사용할 수 없을 때는 해당 테스트가 `t.skip()`으로 건너뛰어야 하며, 조용히 통과해서는 안 됩니다.
 

@@ -22,6 +22,14 @@ does not guarantee a stable public tool schema.
 
 ### Added
 
+- `docs/tools.md`, a generated tool reference, and `docs/api-surface.json`, a
+  structure-only snapshot of every tool's parameters and return payload.
+  `npm run docs` regenerates both and `npm run docs:check` verifies the document
+  is current.
+- `test/api-surface.test.ts` guards the public surface: the exact tool set, the
+  parameter schemas, the captured return shapes, and the freshness of the
+  reference document. Adding or renaming a tool also requires editing
+  `EXPECTED_TOOLS`, so a surface change is always deliberate.
 - `CONTRIBUTING.md` and a release workflow that publishes to npm with provenance after verifying the tag matches `package.json`.
 - Tests for the environment probe (`test/environment.test.ts`) and the scanner CLI contract (`test/helper-cli.test.ts`), and a Python 3.10–3.13 CI matrix.
 
