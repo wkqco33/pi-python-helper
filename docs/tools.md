@@ -415,6 +415,7 @@ Check whether production Python changes have related test changes before impleme
 | 파라미터 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | `changedPaths` | `array<string>` | 아니오 | maxItems 500 |
+| `path` | `string` | 아니오 | — |
 | `testChangedPaths` | `array<string>` | 아니오 | maxItems 500 |
 
 **프롬프트 가이드라인**

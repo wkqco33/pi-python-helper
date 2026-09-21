@@ -89,7 +89,7 @@ export function registerTestingTools(pi: Pi): void {
         let changed = params.changedPaths ?? [];
         let changedSource = 'argument';
         if (!changed.length) {
-          const discovered = await changedPaths(ctx.cwd, signal);
+          const discovered = await changedPaths(root, signal);
           changed = discovered.paths;
           changedSource = discovered.source === 'git' ? 'git' : (discovered.error ?? 'none');
         }
@@ -109,7 +109,7 @@ export function registerTestingTools(pi: Pi): void {
             (entry) => isRunnableTestFile(entry.path) || basename(entry.path) === 'conftest.py',
           )
           .map((entry) => entry.path);
-        const command = pytestCommand(ctx.cwd, {
+        const command = pytestCommand(root, {
           targets: selection.fellBackToAll ? [] : targets,
         });
 
@@ -232,7 +232,7 @@ export function registerTestingTools(pi: Pi): void {
       const started = Date.now();
       try {
         const root = (await resolveProjectRoot(ctx.cwd, params.path)) ?? ctx.cwd;
-        const command = pytestCommand(ctx.cwd, {
+        const command = pytestCommand(root, {
           targets: params.targets,
           lastFailed: params.lastFailed,
           keyword: params.keyword,
@@ -261,7 +261,7 @@ export function registerTestingTools(pi: Pi): void {
         }
 
         const run = await runCommand(command.executable, command.args, {
-          cwd: ctx.cwd,
+          cwd: root,
           signal,
           timeoutMs: (params.timeoutSeconds ?? 900) * 1000,
           maxBytes: 512 * 1024,

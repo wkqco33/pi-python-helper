@@ -1855,6 +1855,10 @@
           "required": false,
           "constraints": "maxItems 500"
         },
+        "path": {
+          "type": "string",
+          "required": false
+        },
         "testChangedPaths": {
           "type": "array<string>",
           "required": false,

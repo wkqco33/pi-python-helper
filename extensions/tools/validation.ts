@@ -73,7 +73,7 @@ export function registerValidationTools(pi: Pi): void {
         const root = (await resolveProjectRoot(ctx.cwd, params.path)) ?? ctx.cwd;
         const mode = params.mode ?? 'check';
         const extras = params.extras ?? 'all';
-        const command = mode === 'check' ? uvLockCheck(ctx.cwd) : uvSyncFrozen(ctx.cwd, { extras });
+        const command = mode === 'check' ? uvLockCheck(root) : uvSyncFrozen(root, { extras });
         const lockPresent = await isFile(join(root, 'uv.lock'));
 
         if (!params.execute) {
@@ -109,7 +109,7 @@ export function registerValidationTools(pi: Pi): void {
         }
 
         const run = await runCommand(command.executable, command.args, {
-          cwd: ctx.cwd,
+          cwd: root,
           signal,
           timeoutMs: (params.timeoutSeconds ?? 600) * 1000,
           maxBytes: 256 * 1024,
@@ -296,9 +296,9 @@ export function registerValidationTools(pi: Pi): void {
       try {
         const root = (await resolveProjectRoot(ctx.cwd, params.path)) ?? ctx.cwd;
         const lockPresent = await isFile(join(root, 'uv.lock'));
-        const lock = uvLockCheck(ctx.cwd);
-        const sync = uvSyncFrozen(ctx.cwd);
-        const test = pytestCommand(ctx.cwd, { targets: params.targets });
+        const lock = uvLockCheck(root);
+        const sync = uvSyncFrozen(root);
+        const test = pytestCommand(root, { targets: params.targets });
         const timeoutMs = (params.timeoutSeconds ?? 1800) * 1000;
         const runQuality = params.quality ?? true;
 
@@ -317,7 +317,7 @@ export function registerValidationTools(pi: Pi): void {
               toolConfiguration: manifestScan.payload?.manifest?.toolConfiguration,
             })
           : [];
-        const quality = qualityCommands(ctx.cwd, runners);
+        const quality = qualityCommands(root, runners);
         const commands = [lock, sync, test, ...quality];
 
         if (!params.execute) {
@@ -369,14 +369,14 @@ export function registerValidationTools(pi: Pi): void {
 
         const lockRun = lockPresent
           ? await runCommand(lock.executable, lock.args, {
-              cwd: ctx.cwd,
+              cwd: root,
               signal,
               timeoutMs,
               maxBytes: 256 * 1024,
             })
           : undefined;
         const syncRun = await runCommand(sync.executable, sync.args, {
-          cwd: ctx.cwd,
+          cwd: root,
           signal,
           timeoutMs,
           maxBytes: 256 * 1024,
@@ -400,7 +400,7 @@ export function registerValidationTools(pi: Pi): void {
 
         const testRun = syncOk
           ? await runCommand(test.executable, test.args, {
-              cwd: ctx.cwd,
+              cwd: root,
               signal,
               timeoutMs,
               maxBytes: 512 * 1024,
@@ -466,7 +466,7 @@ export function registerValidationTools(pi: Pi): void {
           }
           const preview = quality[index];
           const run = await runCommand(preview.executable, preview.args, {
-            cwd: ctx.cwd,
+            cwd: root,
             signal,
             timeoutMs,
             maxBytes: 256 * 1024,
@@ -615,14 +615,16 @@ export function registerValidationTools(pi: Pi): void {
     parameters: Type.Object({
       changedPaths: Type.Optional(Type.Array(Type.String(), { maxItems: 500 })),
       testChangedPaths: Type.Optional(Type.Array(Type.String(), { maxItems: 500 })),
+      path: Type.Optional(Type.String()),
     }),
     async execute(_id, params, signal, _update, ctx) {
       const started = Date.now();
+      const root = (await resolveProjectRoot(ctx.cwd, params.path)) ?? ctx.cwd;
       let changedPaths = params.changedPaths ?? [];
       let source = 'argument';
       if (!changedPaths.length) {
         const diff = await runCommand('git', ['diff', '--name-only', 'HEAD'], {
-          cwd: ctx.cwd,
+          cwd: root,
           signal,
           timeoutMs: 10000,
           maxBytes: 100_000,
