@@ -7,6 +7,8 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-21
+
 ### Added
 
 - `py_test_config` audits the pytest configuration pytest will actually use against the plugins the project declares and the tests on disk. It reports the cases that make a run look green while tests never execute (`ASYNC_TESTS_WITHOUT_PLUGIN`, `ASYNC_TESTS_REQUIRE_MARKER`), the options pytest rejects before collection (`ASYNCIO_MODE_WITHOUT_PLUGIN`, `COVERAGE_OPTION_WITHOUT_PLUGIN`), and a `testpaths` entry that does not exist (`TESTPATH_MISSING`). Only syntax separates an unmarked coroutine test from a marked one, so the decision is made on the AST rather than by matching text.
