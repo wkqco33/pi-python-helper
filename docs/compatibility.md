@@ -19,6 +19,14 @@
 
 매니페스트/락파일 분석은 Python 3.11+에서 가장 정확합니다. 3.10에서는 분석에 사용되는 인터프리터에 `tomli`가 설치되어 있어야 하며, 없으면 `TOML_PARSER_UNAVAILABLE` 경고 후 분석이 생략됩니다. 선언된 버전 제약과 `uv.lock`의 버전 비교에는 `packaging`이 필요하며, 없으면 `SPECIFIER_CHECK_UNAVAILABLE` 노트와 `python3 -m pip install packaging` 제안을 반환하고 이름 대조만 수행합니다.
 
+## 분석 인터프리터 선택 (Which interpreter the scanner uses)
+
+`<root>/.venv`에 인터프리터가 있으면 스캐너는 그것을 사용하고 `interpreterOrigin: 'venv'`를 반환합니다. 없을 때만 PATH의 `python3`/`python`으로 폴백하며 `'path'`로 표시합니다.
+
+이는 정확도 문제입니다. `wconfig`처럼 import 이름과 배포 이름이 다른 모듈은 **실행 중인 인터프리터의 `site-packages`** 에서만 연결됩니다. 호스트 Python 3.14는 모듈 4개를 매핑하는 반면 프로젝트 `.venv`의 Python 3.12는 84개를 매핑하며 `wconfig → wpyconf`를 찾아냅니다. 호스트 인터프리터를 쓰면 모든 프로젝트 의존성이 "제공자 없음"으로 보이고, `providerMappingReliable`이 잘못 `true`로 남았습니다. 지금은 프로젝트의 import를 하나도 소유하지 못한 인터프리터를 신뢰하지 않으며(`providerMappingReliable: false`), 일부만 매핑되면 `UNMAPPED_IMPORTS` 노트로 범위를 좁혀 공개합니다.
+
+같은 이유로 `py_environment`가 보고하는 Python 버전은 프로젝트 환경의 버전입니다(예: 호스트 3.14가 아니라 `.venv`의 3.12).
+
 ## 성능 특성 (Measured cost)
 
 측정 환경: Linux, Python 3.12, `uv` 0.12, 이 저장소 기준.
@@ -50,7 +58,15 @@
 | `packaging` 미설치 | `SPECIFIER_CHECK_UNAVAILABLE` 노트, 이름 대조만 수행 |
 | import 스캔 중 구문 오류 파일 | `UNPARSABLE_FILE` 노트로 보고하고 나머지 스캔은 계속 |
 | 스캔 파일 수 초과 | `truncated: true` 표시 |
-| 스캐너 프로토콜 불일치 | `SCANNER_VERSION_MISMATCH` 오류 반환 (문서를 해석하지 않음) |
+| 스캐너 프로토콜 불일치 | `SCANNER_VERSION_MISMATCH` 오류 반환 (문서를 해석하지 않음). 현재 프로토콜 버전은 **2**이며, 1은 `importModules`가 없어 거부됩니다 |
+| `.venv` 인터프리터 실행 불가 | PATH 인터프리터로 폴백하고 `interpreterOrigin: 'path'`로 표시 |
+| 선언된 도구의 실행 파일 부재 | `TOOL_NOT_INSTALLED` 경고와 `--all-extras` 제안 (`available: false`, `installable: true`) |
+| sync가 패키지를 제거함 | `SYNC_REMOVED_PACKAGES` 경고; pytest가 사라졌으면 테스트 단계를 건너뛰고 그 이유를 반환 |
+| 마커별로 분할된 lock 항목 | 설치 버전이 항목 중 하나와 일치하면 일치로 판정, `MARKER_SPLIT_LOCK_ENTRIES` 노트 |
+| `[build-system]` 없는 프로젝트 | `PROJECT_VIRTUAL_SOURCE` 노트, 누락으로 보고하지 않음 |
+| 테스트가 패키지 안에 있음 | 패키지 루트와 최대 3단계 하위까지 테스트 디렉터리 탐색 (`TESTS_DIRECTORY_FOUND`) |
+| import 이름의 배포판 미확인 | `UNMAPPED_IMPORTS` 노트, `uv add` 명령을 만들지 않고 배포 이름 확인을 요청 |
+| 테스트 선별이 전부를 선택 | `narrowed: false`와 `NO_NARROWING` 경고; import 근거가 없으면 `SELECTION_WITHOUT_IMPORT_EVIDENCE` |
 | 읽을 수 없는 디렉터리 | 해당 항목만 "없음"으로 처리, 전체 스캔은 계속 |
 
 ## 릴리스 호환성 (Release compatibility)

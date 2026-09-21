@@ -22,10 +22,20 @@ export type ToolVersionSource = 'lock' | 'cli' | 'unknown';
 
 export interface ToolAvailability {
   name: string;
-  /** True when the tool is runnable, either locally or through `uv run`. */
+  /**
+   * True only when a runnable executable was found right now.
+   *
+   * A distribution recorded in `uv.lock` is *installable*, not available: the
+   * environment may have had it removed. Reporting it as available made a
+   * broken virtual environment look healthy.
+   */
   available: boolean;
   /** True when `uv.lock` records the distribution, so `uv sync` can install it. */
   declared: boolean;
+  /** True when `uv sync` would provide the tool that is not runnable yet. */
+  installable: boolean;
+  /** True when the console script was found inside the project environment. */
+  installed: boolean;
   /** Absolute path when an executable was found. */
   executable?: string;
   /** Where the executable was found: the project environment or the host PATH. */
@@ -128,8 +138,10 @@ export async function inspectTools(input: ToolProbeInput = {}): Promise<ToolAvai
 
       return {
         name,
-        available: Boolean(executable) || lockVersion !== undefined,
+        available: Boolean(executable),
         declared: lockVersion !== undefined,
+        installable: lockVersion !== undefined && !executable,
+        installed: venvScript !== undefined,
         executable,
         origin,
         version: lockVersion,
@@ -138,4 +150,31 @@ export async function inspectTools(input: ToolProbeInput = {}): Promise<ToolAvai
       } satisfies ToolAvailability;
     }),
   );
+}
+
+export interface RequiredToolCheck {
+  /** False when there was no project environment to inspect at all. */
+  checked: boolean;
+  venvDir?: string;
+  /** Names with no console script in the project environment. */
+  missing: string[];
+}
+
+/**
+ * Confirm that the tools a later step depends on are runnable *now*.
+ *
+ * `uv sync` can legitimately finish with exit code 0 while removing the very
+ * tools the next step needs, so the environment is re-checked between the two
+ * instead of trusting the exit code.
+ */
+export async function checkRequiredTools(
+  venvDir: string | undefined,
+  names: readonly string[],
+): Promise<RequiredToolCheck> {
+  if (!venvDir) return { checked: false, missing: [] };
+  const missing: string[] = [];
+  for (const name of names) {
+    if (!(await findVenvScript(venvDir, name))) missing.push(name);
+  }
+  return { checked: true, venvDir, missing };
 }

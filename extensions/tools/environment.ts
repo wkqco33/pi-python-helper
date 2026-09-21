@@ -4,9 +4,27 @@ import { result, failure } from '../../src/core/result.ts';
 import { detectPythonEnvironment } from '../../src/environment/discovery.ts';
 import { inspectProject } from '../../src/project/inspect.ts';
 import { readInstalledDistributions } from '../../src/project/installed.ts';
-import { isGitIgnored } from '../../src/project/root.ts';
+import { detectPytestConfiguration } from '../../src/project/pytest-config.ts';
+import { findTestDirectories, isGitIgnored } from '../../src/project/root.ts';
 import { runScanProject } from '../../src/project/scanner.ts';
-import { hasDirectory, messageOf, resolveProjectRoot, text, type Pi } from '../shared.ts';
+import {
+  hasDirectory,
+  messageOf,
+  readTextIfExists,
+  resolveProjectRoot,
+  text,
+  type Pi,
+} from '../shared.ts';
+
+/** INI files that can carry pytest configuration, in the order they are read. */
+const PYTEST_INI_FILES = ['pytest.ini', 'tox.ini', 'setup.cfg'];
+
+async function readPytestIniFiles(root: string): Promise<Record<string, string | undefined>> {
+  const entries = await Promise.all(
+    PYTEST_INI_FILES.map(async (name) => [name, await readTextIfExists(join(root, name))] as const),
+  );
+  return Object.fromEntries(entries);
+}
 
 export function registerEnvironmentTools(pi: Pi): void {
   pi.registerTool({
@@ -110,14 +128,21 @@ export function registerEnvironmentTools(pi: Pi): void {
         const venvPath = join(root, '.venv');
         const venvDir = (await hasDirectory(venvPath)) ? venvPath : undefined;
         const venvIgnored = venvDir ? await isGitIgnored(root, '.venv') : undefined;
-        const hasTestsDirectory =
-          (await hasDirectory(join(root, 'tests'))) || (await hasDirectory(join(root, 'test')));
+        // Tests frequently live inside the package they cover, so the whole tree
+        // is searched instead of only `./tests`.
+        const testDirectories = await findTestDirectories(root);
+        const pytestConfiguration = detectPytestConfiguration({
+          pyprojectConfigured: scan.payload.manifest?.toolConfiguration?.pytest === true,
+          iniFiles: await readPytestIniFiles(root),
+        });
         const installed = venvDir ? await readInstalledDistributions(venvDir) : undefined;
         const inspection = inspectProject({
           payload: scan.payload,
           venvDir,
           venvIgnored,
-          hasTestsDirectory,
+          hasTestsDirectory: testDirectories.length > 0,
+          testDirectories,
+          pytestConfiguration,
           installed,
         });
 

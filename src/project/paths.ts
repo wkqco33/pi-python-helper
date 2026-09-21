@@ -21,6 +21,21 @@ export function isTestFile(path: string): boolean {
   return TEST_DIRECTORY.test(posix) || TEST_FILENAME.test(posix);
 }
 
+const RUNNABLE_TEST_FILENAME = /^test_.*\.[a-z]+$/i;
+const RUNNABLE_TEST_SUFFIX = /_test\.[a-z]+$/i;
+
+/**
+ * A file pytest actually collects tests from.
+ *
+ * Living under `tests/` is not enough: `tests/__init__.py`, `tests/conftest.py`,
+ * and `tests/utils.py` are test *infrastructure*, and naming them as pytest
+ * targets overstates what the selection covers.
+ */
+export function isRunnableTestFile(path: string): boolean {
+  const name = basename(toPosix(path));
+  return RUNNABLE_TEST_FILENAME.test(name) || RUNNABLE_TEST_SUFFIX.test(name);
+}
+
 export function isSourceFile(path: string): boolean {
   return isPythonFile(path) && !isTestFile(path);
 }

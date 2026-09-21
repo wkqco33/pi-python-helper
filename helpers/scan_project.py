@@ -35,7 +35,9 @@ from pathlib import Path
 
 # Bumped whenever the request or the result document changes shape, so the
 # caller can refuse to interpret a document it does not understand.
-SCANNER_VERSION = 1
+# 2: each scanned file reports `importModules`, the full dotted module names it
+#    references, so test selection can map a test file to the module it imports.
+SCANNER_VERSION = 2
 
 KNOWN_SECTIONS = ("environment", "manifest", "imports")
 EXIT_OK = 0
@@ -510,9 +512,12 @@ def _is_type_checking_test(test) -> bool:
 
 
 class ImportCollector(ast.NodeVisitor):
+    """Collect top-level import names and the full dotted modules they reference."""
+
     def __init__(self) -> None:
         self.all: set[str] = set()
         self.type_checking: set[str] = set()
+        self.modules: set[str] = set()
         self._guard_depth = 0
 
     def _record(self, name: str) -> None:
@@ -536,12 +541,20 @@ class ImportCollector(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             self._record(alias.name.split(".")[0])
+            self.modules.add(alias.name)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.level:  # relative import -> always local
+            for alias in node.names:
+                self.modules.add(alias.name)
             return
         if node.module:
             self._record(node.module.split(".")[0])
+            self.modules.add(node.module)
+            # `from pkg.db import database` names a submodule, not the package,
+            # so both spellings are recorded and either can match a change.
+            for alias in node.names:
+                self.modules.add(f"{node.module}.{alias.name}")
 
 
 def scan_imports(root: Path, max_files: int) -> dict:
@@ -589,6 +602,7 @@ def scan_imports(root: Path, max_files: int) -> dict:
                 {
                     "path": relative,
                     "imports": sorted(names),
+                    "importModules": sorted(collector.modules),
                     "typeCheckingImports": sorted(collector.type_checking),
                 }
             )

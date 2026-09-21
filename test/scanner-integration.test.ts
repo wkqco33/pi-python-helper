@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import { chmod, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveInterpreter, runScanProject } from '../src/project/scanner.ts';
+import {
+  resolveInterpreter,
+  resolveProjectInterpreter,
+  runScanProject,
+} from '../src/project/scanner.ts';
 import { findProjectRoot, findVenvDir } from '../src/project/root.ts';
 import { listTestFiles } from '../src/build/discover.ts';
 import { resolveProjectRoot } from '../extensions/shared.ts';
@@ -228,6 +232,56 @@ test('the scanner degrades to a structured error outside any project', async (t)
     assert.equal(scan.payload?.manifest?.pyprojectPath, null);
     assert.equal(scan.payload?.lock?.present, false);
     assert.ok((scan.payload?.manifest?.warnings.length ?? 0) > 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('the project interpreter is preferred so providers describe the project environment', async () => {
+  // The scanner answers "which distribution owns this import?" by asking the
+  // interpreter it runs under, so a host python3 reports the host's
+  // site-packages and every project dependency looks unowned.
+  const root = await mkdtemp(join(tmpdir(), 'py-interp-'));
+  try {
+    assert.equal((await resolveProjectInterpreter(root, process.cwd())).origin, 'path');
+
+    await mkdir(join(root, '.venv', 'bin'), { recursive: true });
+    const python = join(root, '.venv', 'bin', 'python');
+    await writeFile(python, '#!/bin/sh\nexit 0\n');
+    await chmod(python, 0o755);
+
+    const resolved = await resolveProjectInterpreter(root, process.cwd());
+    assert.equal(resolved.origin, 'venv');
+    assert.equal(resolved.interpreter, python);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a non-executable .venv python falls back to PATH instead of being used', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'py-interp-bad-'));
+  try {
+    await mkdir(join(root, '.venv', 'bin'), { recursive: true });
+    // Present but not runnable: preferring it would break every scan.
+    await writeFile(join(root, '.venv', 'bin', 'python'), 'not executable\n');
+    assert.equal((await resolveProjectInterpreter(root, process.cwd())).origin, 'path');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runScanProject reports which interpreter produced the payload', async (t) => {
+  const interpreter = await resolveInterpreter(process.cwd());
+  if (!interpreter) {
+    t.skip('no Python 3 interpreter available');
+    return;
+  }
+  const root = await mkdtemp(join(tmpdir(), 'py-interp-fallback-'));
+  try {
+    const scan = await runScanProject(process.cwd(), { root, mode: 'environment' });
+    assert.equal(scan.ok, true, scan.message ?? 'scanner failed');
+    assert.equal(scan.interpreterOrigin, 'path');
+    assert.equal(scan.interpreter, interpreter);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

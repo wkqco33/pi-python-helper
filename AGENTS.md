@@ -45,7 +45,13 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 - 헬퍼의 파일 시스템 접근은 `safe_is_file`/`safe_is_dir`/`safe_iterdir`를 통해서만 하세요. 읽을 수 없는 디렉터리 하나가 전체 스캔을 중단시켜서는 안 됩니다(`PermissionError`는 실제로 흔한 조건입니다).
 - 파일을 파싱할 때는 실제 파서를 사용하세요(`ast`, `tomllib`). 정규식 기반 TOML/Python 파싱을 새로 작성하지 마세요.
 - 판정 신뢰도가 낮으면 경고하지 말고 `notes`(`info`)로 내리거나 옵트인 파라미터로 분리하세요. 오탐은 도구 신뢰도를 떨어뜨립니다.
-- 실패 진단은 **출력상 가장 먼저 등장하는 원인**을 선택해야 합니다. `site-packages` 프레임을 원인으로 지목하지 마세요.
+- 실패 진단은 **출력상 가장 먼저 등장하는 원인**을 선택해야 합니다. `site-packages` 프레임을 원인으로 지목하지 마세요. 실행 파일을 찾지 못해 명령이 시작되지 못한 경우(`Failed to spawn`, `command not found`)는 코드 문제가 아니라 `tool_not_installed` 환경 실패입니다.
+- `uv sync`처럼 상태를 바꾸는 명령이 **선언된 도구를 제거하도록 두지 마세요**. `uv sync --all-groups`는 `[dependency-groups]`만 포함하므로 `[project.optional-dependencies]`에 dev 도구를 선언한 프로젝트에서는 pytest/ruff/pyright가 삭제됩니다(`uvSyncFrozen`이 기본으로 `--all-extras`를 넘기는 이유). 상태를 바꾸는 단계 뒤에는 exit code를 믿지 말고 다음 단계가 필요로 하는 도구가 실제로 실행 가능한지 다시 확인하고, 없으면 그 단계를 건너뛴 이유를 반환하세요.
+- 스캐너는 `<root>/.venv`에 인터프리터가 있으면 그것으로 실행하세요. import↔배포판 매핑은 실행 중인 인터프리터의 `site-packages`에서만 나오므로, 호스트 `python3`를 쓰면 모든 프로젝트 의존성이 "제공자 없음"으로 보입니다. 프로젝트의 import를 하나도 소유하지 못한 인터프리터를 신뢰(`providerMappingReliable`)로 승격하지 마세요.
+- lock 항목은 같은 이름으로 여러 번 등장할 수 있습니다(마커별 분할). 설치 버전이 항목 중 하나와 일치하면 일치로 판정하고, 어떤 항목과도 일치하지 않을 때만 불일치로 보고하세요.
+- 후보 목록의 **모든 항목이 공유하는 신호는 점수를 주지 마세요**. 패키지 루트 이름처럼 전부에 매칭되는 토큰을 세면 선별이 전체 스위트로 퇴화하고, 그 사실을 숨기게 됩니다. 좁혀지지 않았으면 `narrowed: false`로 공개하세요.
+- 테스트를 변경 모듈에 연결할 때는 **실제 import 관계**를 우선하세요(`importModules`). 파일 이름은 pytest 규약일 뿐이며, `test_db_session.py`가 `db/database.py`를 덮는다는 사실은 이름으로 알 수 없습니다.
+- 제공 배포판을 알 수 없는 import에 대해 `uv add <import 이름>` 명령을 만들지 마세요. import 이름과 배포 이름은 자주 다르므로(`wconfig`↔`wpyconf`, `yaml`↔`PyYAML`) 그 명령은 다른 패키지를 설치하거나 실패합니다.
 - 정합성 검사에서 새 규칙을 넣을 때는 먼저 “이 항목이 이 플랫폼에서 설치되지 않는 것이 정상인가?”를 물으세요. 조건부 항목을 누락으로 보고하면 신뢰도를 잃습니다. 검증 불가 상태는 항상 `unverifiable`로 반환하고 `consistent`로 승격하지 마세요.
 - 판정을 느슨하게 만들지 말고 **증명 범위를 좁히세요**. 어떤 항목이 확실하지 않으면 `counts`에 별도 집계하고 `notes`로 공개하는 편이, 경고를 삭제하는 것보다 낫습니다.
 - 성능에 민감한 경로(`py_environment`)에서 도구 존재 확인을 위해 프로세스를 실행하지 마세요. `.venv/bin`/PATH 탐색과 `uv.lock`으로 해결하고, 버전을 모르면 모른다고 보고하세요(`versionSource: 'unknown'`).

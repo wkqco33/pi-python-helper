@@ -83,6 +83,7 @@ test('matching lock and installed versions report no findings', () => {
     installedScanned: true,
     projectInstalled: true,
     projectEditable: true,
+    projectInstallable: true,
   });
   assert.equal(report.counts.installedPackages, 2);
 });
@@ -189,6 +190,70 @@ test('a dependency of a package that is not installed is not required', () => {
   assert.equal(report.verdict, 'consistent');
   assert.equal(report.counts.missing, 0);
   assert.equal(report.counts.conditional, 2);
+});
+
+test('a marker-split lock entry matches the variant this interpreter uses', () => {
+  // uv writes one entry per marker branch. Comparing a single arbitrary entry
+  // reported a version mismatch on a correctly synced 3.12 environment, because
+  // the 3.14 branch was read first.
+  const report = compareInstalledConformance({
+    lock: lock([
+      lockPackage('argon2-cffi', '25.1.0', 'registry', [{ name: 'argon2-cffi-bindings' }]),
+      lockPackage('argon2-cffi-bindings', '21.2.0'),
+      lockPackage('argon2-cffi-bindings', '25.1.0'),
+    ]),
+    installed: environment([
+      installedEntry('argon2-cffi', '25.1.0'),
+      installedEntry('argon2-cffi-bindings', '25.1.0'),
+    ]),
+  });
+  assert.equal(report.verdict, 'consistent');
+  assert.deepEqual(report.findings, []);
+  assert.equal(report.counts.mismatched, 0);
+  assert.equal(report.counts.markerSplitNames, 1);
+  assert.ok(report.notes.some((entry) => entry.code === 'MARKER_SPLIT_LOCK_ENTRIES'));
+});
+
+test('a marker-split entry matching no variant is still a mismatch', () => {
+  const report = compareInstalledConformance({
+    lock: lock([lockPackage('demo-pkg', '1.0.0'), lockPackage('demo-pkg', '2.0.0')]),
+    installed: environment([installedEntry('demo-pkg', '3.0.0')]),
+  });
+  assert.equal(report.verdict, 'drifted');
+  assert.equal(report.counts.mismatched, 1);
+  assert.equal(report.findings[0].expected, '1.0.0 | 2.0.0');
+  assert.match(report.findings[0].message, /matches none of them/);
+});
+
+test('a virtual lock source is not reported as a missing project', () => {
+  // uv records `source = { virtual = "." }` for a project without a
+  // [build-system] table and never installs it into .venv, so its absence is
+  // expected rather than drift.
+  const report = compareInstalledConformance({
+    lock: lock([lockPackage('fastapi-server', '0.2.1', 'virtual'), lockPackage('httpx', '0.28.1')]),
+    installed: environment([installedEntry('httpx', '0.28.1')]),
+    projectName: 'fastapi-server',
+  });
+  assert.equal(report.verdict, 'consistent');
+  assert.deepEqual(report.findings, []);
+  assert.equal(report.counts.missing, 0);
+  assert.equal(report.checks.projectInstallable, false);
+  assert.equal(report.checks.projectInstalled, false);
+  const note = report.notes.find((entry) => entry.code === 'PROJECT_VIRTUAL_SOURCE');
+  assert.ok(note);
+  assert.match(note.message, /virtual = "\."/);
+});
+
+test('an editable lock source absent from .venv is still a finding', () => {
+  const report = compareInstalledConformance({
+    lock: lock([lockPackage('ledger', '0.1.0', 'editable'), lockPackage('httpx', '0.28.1')]),
+    installed: environment([installedEntry('httpx', '0.28.1')]),
+    projectName: 'ledger',
+  });
+  assert.equal(report.verdict, 'drifted');
+  assert.equal(report.counts.missing, 1);
+  assert.equal(report.findings[0].code, 'PROJECT_NOT_INSTALLED');
+  assert.equal(report.checks.projectInstallable, null);
 });
 
 test('the project itself is reported separately when it is not installed at all', () => {

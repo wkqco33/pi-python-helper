@@ -1,4 +1,5 @@
 import { runCommand } from '../core/runner.ts';
+import { findVenvDir, findVenvInterpreter } from './root.ts';
 
 export const HELPER_URL = new URL('../../helpers/scan_project.py', import.meta.url);
 
@@ -13,7 +14,7 @@ export type ScanMode =
   | 'manifest,imports';
 
 /** Bumped by the scanner when the request or result document changes shape. */
-export const SUPPORTED_SCANNER_VERSION = 1;
+export const SUPPORTED_SCANNER_VERSION = 2;
 
 export interface DeclaredDependency {
   raw: string;
@@ -88,7 +89,16 @@ export interface ImportSection {
   stdlibAvailable: boolean;
   layout: 'src' | 'flat';
   localModules: string[];
-  files: { path: string; imports: string[]; typeCheckingImports: string[] }[];
+  files: {
+    path: string;
+    imports: string[];
+    /**
+     * Full dotted module names the file references, so a test file can be
+     * matched to the module it imports rather than only by file name.
+     */
+    importModules?: string[];
+    typeCheckingImports: string[];
+  }[];
   thirdParty: {
     import: string;
     files: string[];
@@ -137,6 +147,8 @@ export interface ScanPayload {
 export interface ScanOutcome {
   ok: boolean;
   interpreter?: string;
+  /** Whether the interpreter came from the project environment or from PATH. */
+  interpreterOrigin?: 'venv' | 'path';
   payload?: ScanPayload;
   /** Diagnostic code the caller can surface verbatim when `ok` is false. */
   code?:
@@ -145,17 +157,23 @@ export interface ScanOutcome {
   stderr?: string;
 }
 
-let interpreterPromise: Promise<string | undefined> | undefined;
+const interpreterPromises = new Map<string, Promise<string | undefined>>();
 
 /**
  * Pick the interpreter used for read-only analysis. `python3` is preferred so a
  * `python` that points at a legacy Python 2 install is never selected.
+ *
+ * Results are cached per key so repeated tool calls in one session do not probe
+ * PATH again.
  */
 export async function resolveInterpreter(
   cwd: string,
   signal?: AbortSignal,
+  cacheKey = 'path',
 ): Promise<string | undefined> {
-  interpreterPromise ??= (async () => {
+  const cached = interpreterPromises.get(cacheKey);
+  if (cached) return cached;
+  const pending = (async () => {
     for (const candidate of ['python3', 'python']) {
       const probe = await runCommand(candidate, ['-c', 'import sys; print(sys.version_info[0])'], {
         cwd,
@@ -167,7 +185,29 @@ export async function resolveInterpreter(
     }
     return undefined;
   })();
-  return interpreterPromise;
+  interpreterPromises.set(cacheKey, pending);
+  return pending;
+}
+
+/**
+ * Resolve the interpreter whose `site-packages` describe this project.
+ *
+ * The scanner answers "which distribution provides this import?" by asking the
+ * interpreter it runs under. A host `python3` sees only its own site-packages,
+ * so every project dependency looks unowned; the project's own interpreter sees
+ * the environment that `uv sync` actually built.
+ */
+export async function resolveProjectInterpreter(
+  root: string,
+  cwd: string,
+  signal?: AbortSignal,
+): Promise<{ interpreter?: string; origin: 'venv' | 'path' }> {
+  const venvDir = await findVenvDir(root);
+  if (venvDir) {
+    const venvInterpreter = await findVenvInterpreter(venvDir);
+    if (venvInterpreter) return { interpreter: venvInterpreter, origin: 'venv' };
+  }
+  return { interpreter: await resolveInterpreter(cwd, signal), origin: 'path' };
 }
 
 /**
@@ -180,12 +220,14 @@ export async function runScanProject(
   request: { root: string; mode: ScanMode; maxFiles?: number },
   signal?: AbortSignal,
 ): Promise<ScanOutcome> {
-  const interpreter = await resolveInterpreter(cwd, signal);
+  const resolved = await resolveProjectInterpreter(request.root, cwd, signal);
+  const interpreter = resolved.interpreter;
+  const origin = resolved.origin;
   if (!interpreter) {
     return {
       ok: false,
       code: 'PYTHON_NOT_FOUND',
-      message: 'No Python 3 interpreter was found on PATH.',
+      message: 'No Python 3 interpreter was found in the project environment or on PATH.',
     };
   }
   const helper = HELPER_URL.pathname;
@@ -200,6 +242,7 @@ export async function runScanProject(
     return {
       ok: false,
       interpreter,
+      interpreterOrigin: origin,
       code: 'SCANNER_FAILED',
       message: 'The project scanner timed out.',
     };
@@ -208,6 +251,7 @@ export async function runScanProject(
     return {
       ok: false,
       interpreter,
+      interpreterOrigin: origin,
       code: 'SCANNER_FAILED',
       message: 'The project scanner exited with an error.',
       stderr: run.stderr.trim() || undefined,
@@ -216,7 +260,13 @@ export async function runScanProject(
   try {
     const payload = JSON.parse(run.stdout) as ScanPayload;
     if (payload.error) {
-      return { ok: false, interpreter, code: 'SCANNER_FAILED', message: payload.error };
+      return {
+        ok: false,
+        interpreter,
+        interpreterOrigin: origin,
+        code: 'SCANNER_FAILED',
+        message: payload.error,
+      };
     }
     // Refuse to interpret a document whose shape may have changed.
     if (
@@ -226,15 +276,17 @@ export async function runScanProject(
       return {
         ok: false,
         interpreter,
+        interpreterOrigin: origin,
         code: 'SCANNER_VERSION_MISMATCH',
         message: `The scanner reported protocol version ${payload.scannerVersion}, but this extension understands version ${SUPPORTED_SCANNER_VERSION}.`,
       };
     }
-    return { ok: true, interpreter, payload };
+    return { ok: true, interpreter, interpreterOrigin: origin, payload };
   } catch {
     return {
       ok: false,
       interpreter,
+      interpreterOrigin: origin,
       code: 'SCANNER_INVALID_OUTPUT',
       message: 'The project scanner did not return valid JSON.',
       stderr: run.stdout.slice(0, 2000),

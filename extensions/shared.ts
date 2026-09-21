@@ -1,4 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
+import { open } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { findProjectRoot, isDirectory, isFile } from '../src/project/root.ts';
 
@@ -41,6 +42,29 @@ export async function resolveProjectRoot(
 
 export async function hasDirectory(path: string): Promise<boolean> {
   return isDirectory(path);
+}
+
+/**
+ * Read a small configuration file, or `undefined` when it is absent.
+ *
+ * The read is bounded because `setup.cfg` and `tox.ini` can be arbitrarily
+ * large and only a section header is needed from them.
+ */
+export async function readTextIfExists(
+  path: string,
+  maxBytes = 64 * 1024,
+): Promise<string | undefined> {
+  let handle;
+  try {
+    handle = await open(path, 'r');
+    const buffer = Buffer.alloc(maxBytes);
+    const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+    return buffer.subarray(0, bytesRead).toString('utf8');
+  } catch {
+    return undefined;
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
 }
 
 export function messageOf(error: unknown): string {

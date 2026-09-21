@@ -50,6 +50,12 @@ export interface ConformanceReport {
     installedScanned: boolean;
     projectInstalled: boolean | null;
     projectEditable: boolean | null;
+    /**
+     * False when the root project is a `virtual` lock source, which uv creates
+     * for a project without a `[build-system]` table. Such a project is never
+     * installed into `.venv`, so its absence is expected rather than drift.
+     */
+    projectInstallable: boolean | null;
   };
   counts: {
     lockPackages: number;
@@ -59,6 +65,11 @@ export interface ConformanceReport {
     /** Locked entries that are conditional for this platform and correctly absent. */
     conditional: number;
     untracked: number;
+    /**
+     * Normalized names that uv.lock pins more than once (a marker split, such as
+     * `argon2-cffi-bindings` at 21.2.0 for Python 3.14 and 25.1.0 below it).
+     */
+    markerSplitNames: number;
   };
   findings: ConformanceFinding[];
   warnings: Diagnostic[];
@@ -147,6 +158,7 @@ export function compareInstalledConformance(input: ConformanceInput): Conformanc
     installedScanned: venvPresent,
     projectInstalled: null as boolean | null,
     projectEditable: null as boolean | null,
+    projectInstallable: null as boolean | null,
   };
   const counts = {
     lockPackages: lock?.packages.length ?? 0,
@@ -155,6 +167,7 @@ export function compareInstalledConformance(input: ConformanceInput): Conformanc
     missing: 0,
     conditional: 0,
     untracked: 0,
+    markerSplitNames: 0,
   };
 
   for (const message of installed?.warnings ?? []) {
@@ -189,51 +202,83 @@ export function compareInstalledConformance(input: ConformanceInput): Conformanc
   const lockByNormalized = new Map(lock.packages.map((entry) => [entry.normalized, entry]));
   const required = requiredInstalledNames(lock, new Set(installedByNormalized.keys()), input);
   const conditionalAbsent: string[] = [];
+  const markerSplitNames: string[] = [];
+  const virtualRoots: string[] = [];
 
+  // uv writes one lock entry per marker branch, so a name can appear several
+  // times with different versions. Comparing a single arbitrary entry reported a
+  // version mismatch on a correctly synced environment (21.2.0 is locked for
+  // Python 3.14 while a 3.12 environment rightly has 25.1.0).
+  const variantsByNormalized = new Map<string, LockPackage[]>();
   for (const entry of lock.packages) {
-    const actual = installedByNormalized.get(entry.normalized);
-    const localProject = isLocalProjectEntry(entry);
-    const rootProject = isRootProjectEntry(entry, projectName);
+    const variants = variantsByNormalized.get(entry.normalized);
+    if (variants) variants.push(entry);
+    else variantsByNormalized.set(entry.normalized, [entry]);
+  }
+
+  for (const [normalized, variants] of variantsByNormalized) {
+    const primary = variants[0];
+    const actual = installedByNormalized.get(normalized);
+    const localProject = variants.some((variant) => isLocalProjectEntry(variant));
+    const rootProject = variants.some((variant) => isRootProjectEntry(variant, projectName));
+    if (variants.length > 1) {
+      counts.markerSplitNames += 1;
+      markerSplitNames.push(primary.name);
+    }
 
     if (!actual) {
       if (localProject) {
+        if (rootProject && variants.some((variant) => variant.source === 'virtual')) {
+          // Without a [build-system] uv records the project as a virtual source
+          // and never installs it; its absence from .venv is not drift.
+          checks.projectInstalled = false;
+          checks.projectInstallable = false;
+          virtualRoots.push(primary.name);
+          continue;
+        }
         counts.missing += 1;
         if (rootProject) checks.projectInstalled = false;
         findings.push({
           code: 'PROJECT_NOT_INSTALLED',
-          name: entry.name,
-          expected: entry.version ?? undefined,
+          name: primary.name,
+          expected: primary.version ?? undefined,
           message: rootProject
-            ? `uv.lock records "${entry.name}" as an editable install, but it is absent from .venv. The project is not importable and no test can exercise it.`
-            : `uv.lock records the local project "${entry.name}" as an editable install, but it is absent from .venv.`,
+            ? `uv.lock records "${primary.name}" as an editable install, but it is absent from .venv. The project is not importable and no test can exercise it.`
+            : `uv.lock records the local project "${primary.name}" as an editable install, but it is absent from .venv.`,
         });
-      } else if (required.has(entry.normalized)) {
+      } else if (required.has(normalized)) {
         counts.missing += 1;
         findings.push({
           code: 'INSTALLED_PACKAGE_MISSING',
-          name: entry.name,
-          expected: entry.version ?? undefined,
-          message: `"${entry.name}" is locked and required unconditionally, but it is not installed in .venv.`,
+          name: primary.name,
+          expected: primary.version ?? undefined,
+          message: `"${primary.name}" is locked and required unconditionally, but it is not installed in .venv.`,
         });
       } else {
         // Guarded by a platform or version marker, so this platform rightly omits it.
-        counts.conditional += 1;
-        conditionalAbsent.push(`${entry.name}@${entry.version ?? '?'}`);
+        counts.conditional += variants.length;
+        for (const variant of variants) {
+          const label = `${primary.name}@${variant.version ?? '?'}`;
+          if (!conditionalAbsent.includes(label)) conditionalAbsent.push(label);
+        }
       }
       continue;
     }
 
     if (localProject) {
-      if (rootProject) checks.projectInstalled = true;
+      if (rootProject) {
+        checks.projectInstalled = true;
+        checks.projectInstallable = true;
+      }
       if (actual.source !== 'editable') {
         if (rootProject) checks.projectEditable = false;
         findings.push({
           code: 'PROJECT_INSTALLED_NOT_EDITABLE',
-          name: entry.name,
+          name: primary.name,
           actual: actual.version,
           message: rootProject
-            ? `"${entry.name}" is installed from a materialised copy instead of an editable link, so tests would import a stale snapshot of the sources.`
-            : `The local project "${entry.name}" is installed from a materialised copy instead of an editable link.`,
+            ? `"${primary.name}" is installed from a materialised copy instead of an editable link, so tests would import a stale snapshot of the sources.`
+            : `The local project "${primary.name}" is installed from a materialised copy instead of an editable link.`,
         });
       } else if (rootProject) {
         checks.projectEditable = true;
@@ -243,16 +288,31 @@ export function compareInstalledConformance(input: ConformanceInput): Conformanc
       continue;
     }
 
-    if (entry.version && actual.version !== entry.version) {
-      counts.mismatched += 1;
-      findings.push({
-        code: 'INSTALLED_VERSION_MISMATCH',
-        name: entry.name,
-        expected: entry.version,
-        actual: actual.version,
-        message: `"${entry.name}" is locked at ${entry.version} but ${actual.version} is installed in .venv.`,
+    // Matching any locked variant is positive proof the environment agrees with
+    // the lockfile for the markers that apply here.
+    if (variants.some((variant) => variant.version === actual.version)) continue;
+
+    const versions = variants.map((variant) => variant.version).filter((value) => value !== null);
+    if (versions.length === 0) {
+      notes.push({
+        code: 'LOCKED_VERSION_UNKNOWN',
+        message: `uv.lock records "${primary.name}" without a version, so the installed ${actual.version} could not be compared.`,
+        severity: 'info',
       });
+      continue;
     }
+
+    counts.mismatched += 1;
+    findings.push({
+      code: 'INSTALLED_VERSION_MISMATCH',
+      name: primary.name,
+      expected: versions.join(' | '),
+      actual: actual.version,
+      message:
+        versions.length > 1
+          ? `"${primary.name}" is locked at ${versions.join(' or ')} (marker-dependent) but ${actual.version} is installed in .venv, which matches none of them.`
+          : `"${primary.name}" is locked at ${versions[0]} but ${actual.version} is installed in .venv.`,
+    });
   }
 
   const untrackedCandidates = (installed?.distributions ?? []).filter(
@@ -282,6 +342,22 @@ export function compareInstalledConformance(input: ConformanceInput): Conformanc
         message: `"${entry.name}" ${entry.version} is installed in .venv but is absent from uv.lock (${entry.source === 'editable' ? 'editable install' : 'installed copy'}).`,
       });
     }
+  }
+
+  if (markerSplitNames.length > 0) {
+    notes.push({
+      code: 'MARKER_SPLIT_LOCK_ENTRIES',
+      message: `${markerSplitNames.length} distribution(s) are locked more than once because uv splits them by marker (${markerSplitNames.slice(0, 5).join(', ')}${markerSplitNames.length > 5 ? ', …' : ''}); the installed version is compared against every variant and matches when it equals any one of them.`,
+      severity: 'info',
+    });
+  }
+
+  if (virtualRoots.length > 0) {
+    notes.push({
+      code: 'PROJECT_VIRTUAL_SOURCE',
+      message: `uv.lock records "${virtualRoots[0]}" with source = { virtual = "." }, which uv writes for a project without a [build-system] table. It is intentionally never installed into .venv, and imports still resolve from the working directory.`,
+      severity: 'info',
+    });
   }
 
   if (conditionalAbsent.length > 0) {

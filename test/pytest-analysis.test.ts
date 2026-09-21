@@ -177,3 +177,65 @@ test('a declared but unimportable module is an environment problem, not a declar
   assert.equal(local.kind, 'environment_not_synced');
   assert.match(local.summary, /project code/);
 });
+
+/**
+ * The exact shape `uv run --frozen pytest` produced after a sync removed the
+ * project's dev tooling. It is not a code failure, and classifying it as
+ * "unknown" left the caller to guess.
+ */
+const SPAWN_FAILURE = `error: Failed to spawn: \`pytest\`
+  cause: No such file or directory (os error 2)`;
+
+const SHELL_MISSING_TOOL = `sh: ruff: command not found`;
+
+test('a tool that cannot be spawned is classified as an environment failure', () => {
+  const diagnosis = diagnoseFailure(SPAWN_FAILURE);
+  assert.equal(diagnosis.kind, 'tool_not_installed');
+  assert.equal(diagnosis.missingTool, 'pytest');
+  assert.match(diagnosis.summary, /not installed/);
+  assert.equal(diagnosis.suggestions[0].command, 'uv sync --frozen --all-groups --all-extras');
+  assert.match(
+    diagnosis.suggestions.map((entry) => entry.message).join(' '),
+    /optional-dependencies/,
+  );
+});
+
+test('a shell that cannot find a tool is classified the same way', () => {
+  const diagnosis = diagnoseFailure(SHELL_MISSING_TOOL);
+  assert.equal(diagnosis.kind, 'tool_not_installed');
+  assert.equal(diagnosis.missingTool, 'ruff');
+});
+
+test('a missing tool is never reported as an unclassified failure', () => {
+  const diagnosis = diagnoseFailure(SPAWN_FAILURE);
+  assert.notEqual(diagnosis.kind, 'unknown');
+  assert.equal(diagnosis.frames.length, 0);
+  assert.equal(diagnosis.firstUserFrame, undefined);
+});
+
+test('a traceback that precedes a spawn error keeps its own classification', () => {
+  // The contract is "first actionable cause", so position decides: a real code
+  // failure printed before the environment failure must win.
+  const diagnosis = diagnoseFailure(
+    [
+      'E   AssertionError: 1 != 2',
+      '',
+      'error: Failed to spawn: `pytest`',
+      '  cause: No such file or directory (os error 2)',
+    ].join('\n'),
+  );
+  assert.equal(diagnosis.kind, 'assertion');
+});
+
+test('an already-classified module failure is not overridden by a spawn error', () => {
+  const diagnosis = diagnoseFailure(
+    [
+      "ModuleNotFoundError: No module named 'wconfig'",
+      '',
+      'error: Failed to spawn: `pytest`',
+      '  cause: No such file or directory (os error 2)',
+    ].join('\n'),
+  );
+  assert.equal(diagnosis.kind, 'module_not_found');
+  assert.equal(diagnosis.missingModule, 'wconfig');
+});

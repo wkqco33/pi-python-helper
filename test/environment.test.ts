@@ -68,7 +68,7 @@ test('resolveOnPath returns the first matching directory only', async () => {
   }
 });
 
-test('a tool declared in the lockfile is available even without an executable', async () => {
+test('a distribution recorded in the lockfile is installable but not available', async () => {
   const tools = await inspectTools({
     lockPackages: [lockPackage('ruff', '0.16.8')],
     names: ['ruff'],
@@ -77,8 +77,11 @@ test('a tool declared in the lockfile is available even without an executable', 
   assert.deepEqual(tools, [
     {
       name: 'ruff',
-      available: true,
+      // The lockfile says uv sync *could* install it; it does not say it is runnable.
+      available: false,
       declared: true,
+      installable: true,
+      installed: false,
       executable: undefined,
       origin: undefined,
       version: '0.16.8',
@@ -166,12 +169,15 @@ test('py_environment does not spawn one process per project tool', async (t) => 
     assert.equal(byName.get('pytest')?.declared, true);
     assert.equal(byName.get('pytest')?.version, '9.1.1');
     assert.notEqual(byName.get('pytest')?.origin, 'venv');
-    // Locked, not installed here, and absent from this environment's PATH.
-    assert.equal(byName.get('pre-commit')?.available, true);
+    // Locked, not installed here, and absent from this environment's PATH: the
+    // environment cannot run it until it is synced again.
+    assert.equal(byName.get('pre-commit')?.available, false);
     assert.equal(byName.get('pre-commit')?.declared, true);
+    assert.equal(byName.get('pre-commit')?.installable, true);
     assert.equal(byName.get('pre-commit')?.version, '4.0.1');
     // Neither declared nor installed anywhere.
     assert.equal(byName.get('mypy')?.available, false);
+    assert.equal(byName.get('mypy')?.installable, false);
     assert.equal(byName.get('mypy')?.versionSource, 'unknown');
 
     // The project environment exists, so the "no environment" warning is wrong.
@@ -179,6 +185,13 @@ test('py_environment does not spawn one process per project tool', async (t) => 
       environment.warnings.some((entry) => entry.code === 'NO_VIRTUAL_ENVIRONMENT'),
       false,
     );
+
+    // A declared tool with no executable is reported instead of looking healthy.
+    assert.equal(
+      environment.warnings.some((entry) => entry.code === 'TOOL_NOT_INSTALLED'),
+      true,
+    );
+    assert.match(environment.suggestions.join(' '), /--all-extras/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

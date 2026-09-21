@@ -4,13 +4,19 @@ import { findProjectRoot, findVenvDir, isFile } from '../project/root.ts';
 import {
   type EnvironmentSection,
   type LockPackage,
-  resolveInterpreter,
+  resolveProjectInterpreter,
   runScanProject,
 } from '../project/scanner.ts';
 import { inspectTools, type ToolAvailability } from './tools.ts';
 
 export interface PythonEnvironment {
   interpreter?: string;
+  /**
+   * Whether the analysed interpreter belongs to the project environment or was
+   * taken from PATH. Analysis facts such as `site-packages` contents and the
+   * reported version are only the project's when this is `venv`.
+   */
+  interpreterOrigin?: 'venv' | 'path';
   python?: EnvironmentSection;
   projectRoot?: string;
   venvDir?: string;
@@ -57,12 +63,13 @@ export async function detectPythonEnvironment(
 ): Promise<PythonEnvironment> {
   const warnings: Diagnostic[] = [];
   const suggestions: string[] = [];
-  const interpreter = await resolveInterpreter(cwd, signal);
   const projectRoot = await findProjectRoot(cwd);
   const scanRoot = projectRoot ?? cwd;
 
   let python: EnvironmentSection | undefined;
   let lockPackages: LockPackage[] = [];
+  const resolved = await resolveProjectInterpreter(scanRoot, cwd, signal);
+  const interpreter = resolved.interpreter;
   if (interpreter) {
     const scan = await runScanProject(
       cwd,
@@ -79,7 +86,7 @@ export async function detectPythonEnvironment(
     warnings.push(
       warn(
         'PYTHON_NOT_FOUND',
-        'No Python 3 interpreter was found on PATH; every analysis tool degrades to static inspection only.',
+        'No Python 3 interpreter was found in the project environment or on PATH; every analysis tool degrades to static inspection only.',
       ),
     );
     suggestions.push('Install Python 3.11 or newer so pyproject.toml and uv.lock can be parsed.');
@@ -100,6 +107,25 @@ export async function detectPythonEnvironment(
   const venvDir = projectRoot ? await findVenvDir(projectRoot) : undefined;
   const lockPresent = projectRoot ? await isFile(`${projectRoot}/uv.lock`) : false;
   const tools = await inspectTools({ venvDir, lockPackages });
+
+  // A distribution recorded in the lockfile is installable, not installed. When
+  // the project environment exists but a declared tool has no console script,
+  // the environment was synced without it and every later step that needs it
+  // will fail, so this is reported rather than left to be discovered later.
+  const missingDeclaredTools = venvDir ? tools.filter((tool) => tool.installable) : [];
+  if (missingDeclaredTools.length > 0) {
+    const names = missingDeclaredTools.map((tool) => tool.name).join(', ');
+    warnings.push(
+      warn(
+        'TOOL_NOT_INSTALLED',
+        `${names} ${missingDeclaredTools.length === 1 ? 'is' : 'are'} recorded in uv.lock but has no executable in .venv, so it cannot be run right now.`,
+        venvDir,
+      ),
+    );
+    suggestions.push(
+      'Run uv sync --frozen --all-groups --all-extras: a plain uv sync removes extras declared in [project.optional-dependencies].',
+    );
+  }
 
   const uvVersion = await toolVersion(cwd, 'uv', signal);
   if (!uvVersion) {
@@ -155,6 +181,7 @@ export async function detectPythonEnvironment(
 
   return {
     interpreter,
+    interpreterOrigin: resolved.origin,
     python,
     projectRoot,
     venvDir,

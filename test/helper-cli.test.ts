@@ -164,3 +164,45 @@ test('a broken or missing packaging degrades to name-only comparison', async (t)
     await rm(shim, { recursive: true, force: true });
   }
 });
+
+test('each scanned file reports the dotted modules it imports', async (t) => {
+  if (!(await helperAvailable())) return t.skip('no Python 3 interpreter available');
+  // Test selection needs this: `test_db_session.py` gives no naming hint that it
+  // covers `db/database.py`, but its imports do.
+  const root = await mkdtemp(join(tmpdir(), 'py-helper-imports-'));
+  try {
+    await writeFile(
+      join(root, 'sample.py'),
+      [
+        'import os',
+        'import json',
+        'from pkg.db import database',
+        'from pkg.routes.admin import router',
+        'from . import sibling',
+        '',
+      ].join('\n'),
+    );
+    const run = await runHelper([], JSON.stringify({ mode: 'imports', root }));
+    assert.equal(run.code, 0);
+    const payload = JSON.parse(run.stdout) as {
+      scannerVersion: number;
+      imports: { files: { path: string; imports: string[]; importModules: string[] }[] };
+    };
+    assert.equal(payload.scannerVersion, SUPPORTED_SCANNER_VERSION);
+
+    const file = payload.imports.files.find((entry) => entry.path === 'sample.py');
+    assert.ok(file);
+    // Top-level names stay as they were, so existing analysis is unaffected.
+    assert.deepEqual(file.imports, ['json', 'os', 'pkg']);
+    // Full dotted paths are the new part; `pkg.db.database` is what a changed
+    // source file maps to.
+    assert.ok(file.importModules.includes('pkg.db'));
+    assert.ok(file.importModules.includes('pkg.db.database'));
+    assert.ok(file.importModules.includes('pkg.routes.admin'));
+    assert.ok(file.importModules.includes('pkg.routes.admin.router'));
+    // A relative import names only the imported symbol.
+    assert.ok(file.importModules.includes('sibling'));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

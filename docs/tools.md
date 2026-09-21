@@ -150,10 +150,12 @@ Compare imports found with ast against declared dependencies, dev groups, and uv
   - `fileCount`: number
   - `files`: array<string>
   - `import`: string
+  - `providerKnown`: boolean
   - `providers`: array<…>
   - `reason`: string
   - `suggestedDistribution`: string
   - `typeCheckingOnly`: boolean
+- `unmappedImports`: number
 - `unparsable`: array<…>
 - `unused`: array of
   - `groups`: array<string>
@@ -184,6 +186,7 @@ Inspect the active Python interpreter, virtual environment, uv availability, and
 **반환 `data` 형태**
 
 - `interpreter`: string
+- `interpreterOrigin`: string
 - `projectRoot`: string
 - `python`: object
   - `basePrefix`: string
@@ -204,6 +207,8 @@ Inspect the active Python interpreter, virtual environment, uv availability, and
   - `available`: boolean
   - `declared`: boolean
   - `executable`: string
+  - `installable`: boolean
+  - `installed`: boolean
   - `name`: string
   - `origin`: string
   - `preferredInvocation`: string
@@ -286,6 +291,7 @@ Inspect pyproject.toml, uv.lock, dependency groups, layout, and tool configurati
     - `installedScanned`: boolean
     - `lockPresent`: boolean
     - `projectEditable`: boolean
+    - `projectInstallable`: boolean
     - `projectInstalled`: boolean
     - `venvPresent`: boolean
   - `complete`: boolean
@@ -293,6 +299,7 @@ Inspect pyproject.toml, uv.lock, dependency groups, layout, and tool configurati
     - `conditional`: number
     - `installedPackages`: number
     - `lockPackages`: number
+    - `markerSplitNames`: number
     - `mismatched`: number
     - `missing`: number
     - `untracked`: number
@@ -327,7 +334,10 @@ Inspect pyproject.toml, uv.lock, dependency groups, layout, and tool configurati
   - `present`: boolean
 - `modules`: array<string>
 - `name`: string
-- `notes`: array<…>
+- `notes`: array of
+  - `code`: string
+  - `message`: string
+  - `severity`: string
 - `pyproject`: string
 - `requirementsFiles`: array<…>
 - `requiresPython`: string
@@ -368,13 +378,15 @@ Preview or run uv lock --check or uv sync --frozen. Execution is opt-in because 
 | 파라미터 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | `execute` | `boolean` | 아니오 | — |
-| `mode` | `"check" | "sync"` | 아니오 | check runs uv lock --check; sync runs uv sync --frozen --all-groups. |
+| `extras` | `"all" | "none"` | 아니오 | Whether sync requests every [project.optional-dependencies] extra. Defaults to all: without it uv removes extras such as the dev tooling. |
+| `mode` | `"check" | "sync"` | 아니오 | check runs uv lock --check; sync runs uv sync --frozen --all-groups --all-extras. |
 | `path` | `string` | 아니오 | — |
 | `timeoutSeconds` | `integer` | 아니오 | 1..1800 |
 
 **프롬프트 가이드라인**
 
 - Use py_sync with execute=false to preview the uv command, and execute=true only when the environment must be created or refreshed.
+- Use py_sync after changing pyproject.toml or uv.lock; a sync that removed packages is reported because later steps cannot run without them.
 
 **반환 `data` 형태**
 
@@ -384,6 +396,7 @@ Preview or run uv lock --check or uv sync --frozen. Execution is opt-in because 
   - `executable`: string
   - `risk`: string
 - `executed`: boolean
+- `extras`: string
 - `lockPresent`: boolean
 - `mode`: string
 
@@ -408,12 +421,14 @@ Check whether production Python changes have related test changes before impleme
 
 **반환 `data` 형태**
 
+- `associations`: array<…>
 - `changedPaths`: array<string>
 - `ok`: boolean
 - `reasons`: array<string>
 - `source`: string
 - `sourceChanges`: array<string>
 - `testChanges`: array<string>
+- `weakAssociation`: boolean
 
 ### `py_test`
 
@@ -428,6 +443,7 @@ Preview or run pytest through uv run --frozen and summarise failures by test, fi
 | 파라미터 | 타입 | 필수 | 설명 |
 |---|---|---|---|
 | `execute` | `boolean` | 아니오 | — |
+| `extraArgs` | `array<string>` | 아니오 | Extra pytest arguments passed verbatim as an argument array, e.g. ["--cov=my_pkg", "--cov-branch"] or ["-m", "unit"]. |
 | `keyword` | `string` | 아니오 | pytest -k expression. |
 | `lastFailed` | `boolean` | 아니오 | Rerun only tests that failed last time (--lf). |
 | `maxFail` | `integer` | 아니오 | 1..1000 |
@@ -439,6 +455,7 @@ Preview or run pytest through uv run --frozen and summarise failures by test, fi
 
 - Use py_test with execute=false first; a preview is never a passing test run.
 - Use py_test after changing Python sources; it does not rebuild anything, so run py_sync first when dependencies changed.
+- Use py_test with extraArgs to run project-standard pytest flags such as coverage options that the tool does not model directly.
 
 **반환 `data` 형태**
 
@@ -475,11 +492,15 @@ Select focused pytest targets from changed files using pytest naming conventions
 - `changedTestFiles`: array<…>
 - `consideredTestFiles`: array<string>
 - `fellBackToAll`: boolean
+- `importEvidenceUsed`: boolean
+- `narrowed`: boolean
+- `noNarrowing`: boolean
 - `pytestTargets`: array<string>
 - `selected`: array of
   - `path`: string
   - `reason`: string
   - `score`: number
+- `supportFiles`: array<…>
 
 ### `py_validation_bundle`
 
@@ -495,6 +516,7 @@ Preview or run one evidence-oriented sequence: uv lock --check, uv sync --frozen
 |---|---|---|---|
 | `execute` | `boolean` | 아니오 | — |
 | `path` | `string` | 아니오 | — |
+| `quality` | `boolean` | 아니오 | Run the lint/type tools the project declares (ruff, pyright, and mypy when [tool.mypy] exists). Defaults to true. |
 | `targets` | `array<string>` | 아니오 | — |
 | `timeoutSeconds` | `integer` | 아니오 | 1..3600 |
 
@@ -507,6 +529,7 @@ Preview or run one evidence-oriented sequence: uv lock --check, uv sync --frozen
 
 - `executed`: boolean
 - `lockPresent`: boolean
+- `quality`: array<string>
 - `steps`: array of
   - `args`: array<string>
   - `cwd`: string

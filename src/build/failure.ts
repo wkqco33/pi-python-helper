@@ -1,6 +1,7 @@
 import type { Suggestion } from '../core/result.ts';
 
 export type FailureKind =
+  | 'tool_not_installed'
   | 'module_not_found'
   | 'environment_not_synced'
   | 'import_error'
@@ -33,6 +34,8 @@ export interface FailureDiagnosis {
   kind: FailureKind;
   summary: string;
   missingModule?: string;
+  /** Executable the command tried to start but could not find. */
+  missingTool?: string;
   importTarget?: { name: string; module: string };
   exceptionType?: string;
   frames: TracebackFrame[];
@@ -124,6 +127,46 @@ export function diagnoseFailure(output: string): FailureDiagnosis {
     };
   }
 
+  // An environment failure is not a code failure. It appears as a spawn error
+  // rather than a traceback, so it must be classified before the traceback
+  // patterns or the whole run reads as an unclassifiable crash.
+  const spawnFailure = lastMatch(output, /Failed to spawn:?\s*`?([A-Za-z0-9._+-]+)`?/);
+  const commandNotFound = lastMatch(
+    output,
+    /(?:^|\n)\s*(?:sh: |bash: )?([A-Za-z0-9._+-]+): (?:command not found|No such file or directory)/,
+  );
+  const missingExecutable = spawnFailure ?? commandNotFound;
+  const toolNotInstalled = (tool: string, matchedText: string): FailureDiagnosis => {
+    const noEntry = /No such file or directory/.test(output) || /command not found/.test(output);
+    return {
+      kind: 'tool_not_installed',
+      summary: noEntry
+        ? `The command could not start because "${tool}" is not installed in the environment that ran it.`
+        : `The command could not start: ${matchedText}`,
+      missingTool: tool,
+      exceptionType: 'environment',
+      frames,
+      firstUserFrame: userFrame,
+      evidence: [{ message: matchedText }],
+      suggestions: [
+        {
+          message: `Install the project environment so "${tool}" is available, then rerun through uv run.`,
+          confidence: 'high',
+          command: 'uv sync --frozen --all-groups --all-extras',
+        },
+        {
+          message:
+            'A plain uv sync removes extras declared in [project.optional-dependencies], which is the usual reason a declared tool disappears mid-run.',
+          confidence: 'high',
+        },
+        {
+          message: `Run the tool from the project environment with uv run --frozen ${tool}.`,
+          confidence: 'high',
+        },
+      ],
+    };
+  };
+
   const missing = lastMatch(output, /ModuleNotFoundError: No module named '([^']+)'/);
   const cannotImport = lastMatch(
     output,
@@ -152,6 +195,11 @@ export function diagnoseFailure(output: string): FailureDiagnosis {
     if (match?.index !== undefined) candidates.push({ kind, index: match.index });
   };
   consider('module_not_found', /ModuleNotFoundError: No module named '([^']+)'/);
+  consider('tool_not_installed', /Failed to spawn:?\s*`?([A-Za-z0-9._+-]+)`?/);
+  consider(
+    'tool_not_installed',
+    /(?:^|\n)\s*(?:sh: |bash: )?([A-Za-z0-9._+-]+): (?:command not found|No such file or directory)/,
+  );
   consider('import_error', /ImportError: cannot import name '([^']+)' from '([^']+)'/);
   consider('syntax_error', /SyntaxError: (.+)/);
   consider('fixture_error', /(?:fixture '[^']+' not found|ERROR at setup of|error in .* fixture)/);
@@ -163,6 +211,14 @@ export function diagnoseFailure(output: string): FailureDiagnosis {
   consider('runtime_error', /^(?:\s*E\s+)?(?:[A-Za-z_.]*(?:Error|Exception)): (.+)$/m);
   candidates.sort((left, right) => left.index - right.index);
   const kind: FailureKind = candidates[0]?.kind ?? 'unknown';
+
+  // Dispatch on the positional winner. `tool_not_installed` can be the earliest
+  // cause even when a traceback follows it, so it is not checked before the
+  // positional comparison.
+  if (kind === 'tool_not_installed') {
+    const match = missingExecutable;
+    if (match) return toolNotInstalled(match[1], match[0].trim());
+  }
 
   if (kind === 'module_not_found' && missing) {
     const module = missing[1].split('.')[0];

@@ -380,6 +380,14 @@
                     }
                   },
                   {
+                    "key": "providerKnown",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
                     "key": "providers",
                     "optional": false,
                     "shape": {
@@ -416,6 +424,14 @@
                   }
                 ]
               }
+            }
+          },
+          {
+            "key": "unmappedImports",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "number"
             }
           },
           {
@@ -523,6 +539,14 @@
         "fields": [
           {
             "key": "interpreter",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
+            "key": "interpreterOrigin",
             "optional": false,
             "shape": {
               "kind": "primitive",
@@ -694,6 +718,22 @@
                     "shape": {
                       "kind": "primitive",
                       "name": "string"
+                    }
+                  },
+                  {
+                    "key": "installable",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
+                    }
+                  },
+                  {
+                    "key": "installed",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "boolean"
                     }
                   },
                   {
@@ -1061,6 +1101,14 @@
                         }
                       },
                       {
+                        "key": "projectInstallable",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "boolean"
+                        }
+                      },
+                      {
                         "key": "projectInstalled",
                         "optional": false,
                         "shape": {
@@ -1111,6 +1159,14 @@
                       },
                       {
                         "key": "lockPackages",
+                        "optional": false,
+                        "shape": {
+                          "kind": "primitive",
+                          "name": "number"
+                        }
+                      },
+                      {
+                        "key": "markerSplitNames",
                         "optional": false,
                         "shape": {
                           "kind": "primitive",
@@ -1423,8 +1479,33 @@
             "shape": {
               "kind": "array",
               "items": {
-                "kind": "primitive",
-                "name": "unknown"
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "code",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "message",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "severity",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
               }
             }
           },
@@ -1664,10 +1745,15 @@
           "type": "boolean",
           "required": false
         },
+        "extras": {
+          "type": "\"all\" | \"none\"",
+          "required": false,
+          "description": "Whether sync requests every [project.optional-dependencies] extra. Defaults to all: without it uv removes extras such as the dev tooling."
+        },
         "mode": {
           "type": "\"check\" | \"sync\"",
           "required": false,
-          "description": "check runs uv lock --check; sync runs uv sync --frozen --all-groups."
+          "description": "check runs uv lock --check; sync runs uv sync --frozen --all-groups --all-extras."
         },
         "path": {
           "type": "string",
@@ -1735,6 +1821,14 @@
             }
           },
           {
+            "key": "extras",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "string"
+            }
+          },
+          {
             "key": "lockPresent",
             "optional": false,
             "shape": {
@@ -1770,6 +1864,17 @@
       "data": {
         "kind": "object",
         "fields": [
+          {
+            "key": "associations",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
+          },
           {
             "key": "changedPaths",
             "optional": false,
@@ -1829,6 +1934,14 @@
                 "name": "string"
               }
             }
+          },
+          {
+            "key": "weakAssociation",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
           }
         ]
       }
@@ -1839,6 +1952,11 @@
         "execute": {
           "type": "boolean",
           "required": false
+        },
+        "extraArgs": {
+          "type": "array<string>",
+          "required": false,
+          "description": "Extra pytest arguments passed verbatim as an argument array, e.g. [\"--cov=my_pkg\", \"--cov-branch\"] or [\"-m\", \"unit\"]."
         },
         "keyword": {
           "type": "string",
@@ -1991,6 +2109,30 @@
             }
           },
           {
+            "key": "importEvidenceUsed",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "narrowed",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
+            "key": "noNarrowing",
+            "optional": false,
+            "shape": {
+              "kind": "primitive",
+              "name": "boolean"
+            }
+          },
+          {
             "key": "pytestTargets",
             "optional": false,
             "shape": {
@@ -2036,6 +2178,17 @@
                 ]
               }
             }
+          },
+          {
+            "key": "supportFiles",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "unknown"
+              }
+            }
           }
         ]
       }
@@ -2050,6 +2203,11 @@
         "path": {
           "type": "string",
           "required": false
+        },
+        "quality": {
+          "type": "boolean",
+          "required": false,
+          "description": "Run the lint/type tools the project declares (ruff, pyright, and mypy when [tool.mypy] exists). Defaults to true."
         },
         "targets": {
           "type": "array<string>",
@@ -2078,6 +2236,17 @@
             "shape": {
               "kind": "primitive",
               "name": "boolean"
+            }
+          },
+          {
+            "key": "quality",
+            "optional": false,
+            "shape": {
+              "kind": "array",
+              "items": {
+                "kind": "primitive",
+                "name": "string"
+              }
             }
           },
           {
@@ -2229,6 +2398,17 @@
           "kind": "object",
           "fields": [
             {
+              "key": "associations",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
               "key": "blockers",
               "optional": true,
               "shape": {
@@ -2361,6 +2541,14 @@
                           }
                         },
                         {
+                          "key": "projectInstallable",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "boolean"
+                          }
+                        },
+                        {
                           "key": "projectInstalled",
                           "optional": false,
                           "shape": {
@@ -2411,6 +2599,14 @@
                         },
                         {
                           "key": "lockPackages",
+                          "optional": false,
+                          "shape": {
+                            "kind": "primitive",
+                            "name": "number"
+                          }
+                        },
+                        {
+                          "key": "markerSplitNames",
                           "optional": false,
                           "shape": {
                             "kind": "primitive",
@@ -2799,6 +2995,14 @@
               }
             },
             {
+              "key": "extras",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
               "key": "fellBackToAll",
               "optional": true,
               "shape": {
@@ -2892,6 +3096,14 @@
               }
             },
             {
+              "key": "importEvidenceUsed",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
               "key": "importName",
               "optional": true,
               "shape": {
@@ -2934,6 +3146,14 @@
             },
             {
               "key": "interpreter",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "string"
+              }
+            },
+            {
+              "key": "interpreterOrigin",
               "optional": true,
               "shape": {
                 "kind": "primitive",
@@ -3080,6 +3300,22 @@
               "shape": {
                 "kind": "primitive",
                 "name": "string"
+              }
+            },
+            {
+              "key": "narrowed",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
+            },
+            {
+              "key": "noNarrowing",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
               }
             },
             {
@@ -3278,6 +3514,17 @@
               }
             },
             {
+              "key": "quality",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "string"
+                }
+              }
+            },
+            {
               "key": "reasons",
               "optional": true,
               "shape": {
@@ -3462,6 +3709,17 @@
               }
             },
             {
+              "key": "supportFiles",
+              "optional": true,
+              "shape": {
+                "kind": "array",
+                "items": {
+                  "kind": "primitive",
+                  "name": "unknown"
+                }
+              }
+            },
+            {
               "key": "testChanges",
               "optional": true,
               "shape": {
@@ -3578,6 +3836,22 @@
                       }
                     },
                     {
+                      "key": "installable",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
+                      "key": "installed",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
                       "key": "name",
                       "optional": false,
                       "shape": {
@@ -3665,6 +3939,14 @@
                       }
                     },
                     {
+                      "key": "providerKnown",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "boolean"
+                      }
+                    },
+                    {
                       "key": "providers",
                       "optional": false,
                       "shape": {
@@ -3701,6 +3983,14 @@
                     }
                   ]
                 }
+              }
+            },
+            {
+              "key": "unmappedImports",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "number"
               }
             },
             {
@@ -3875,6 +4165,14 @@
                   ]
                 }
               }
+            },
+            {
+              "key": "weakAssociation",
+              "optional": true,
+              "shape": {
+                "kind": "primitive",
+                "name": "boolean"
+              }
             }
           ]
         }
@@ -4011,6 +4309,14 @@
                       }
                     },
                     {
+                      "key": "markerSplitNames",
+                      "optional": false,
+                      "shape": {
+                        "kind": "primitive",
+                        "name": "number"
+                      }
+                    },
+                    {
                       "key": "mismatched",
                       "optional": false,
                       "shape": {
@@ -4127,6 +4433,14 @@
                       }
                     }
                   ]
+                }
+              },
+              {
+                "key": "importEvidenceUsed",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
                 }
               },
               {
@@ -4293,6 +4607,14 @@
                     "kind": "primitive",
                     "name": "string"
                   }
+                }
+              },
+              {
+                "key": "narrowed",
+                "optional": true,
+                "shape": {
+                  "kind": "primitive",
+                  "name": "boolean"
                 }
               },
               {

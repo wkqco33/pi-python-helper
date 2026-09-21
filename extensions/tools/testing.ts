@@ -1,12 +1,14 @@
 import { Type } from 'typebox';
+import { basename } from 'node:path';
 import { failure, result } from '../../src/core/result.ts';
 import { runCommand } from '../../src/core/runner.ts';
 import { pytestCommand } from '../../src/build/commands.ts';
 import { changedPaths, listTestFiles } from '../../src/build/discover.ts';
 import { diagnoseFailure, refineWithDeclarations } from '../../src/build/failure.ts';
 import { parsePytestOutput } from '../../src/build/pytest.ts';
-import { selectTests } from '../../src/build/selection.ts';
+import { selectTests, type TestImportMap } from '../../src/build/selection.ts';
 import { buildDeclaredIndex } from '../../src/dependencies/plan.ts';
+import { isRunnableTestFile } from '../../src/project/paths.ts';
 import { runScanProject } from '../../src/project/scanner.ts';
 import { messageOf, resolveProjectRoot, text, type Pi } from '../shared.ts';
 
@@ -31,6 +33,30 @@ async function refine(
   );
   const localModules = new Set(scan.payload.imports?.localModules ?? []);
   return refineWithDeclarations(diagnosis, { declared, localModules });
+}
+
+/**
+ * Map each test file to the dotted modules it imports.
+ *
+ * A test named `test_db_session.py` gives no naming hint that it covers
+ * `db/database.py`; the fact that it imports `pkg.db.database` does. The scanner
+ * supplies this because only a real parser may be trusted with Python source.
+ */
+async function collectTestImports(
+  root: string,
+  cwd: string,
+  signal: AbortSignal | undefined,
+): Promise<TestImportMap | undefined> {
+  const scan = await runScanProject(cwd, { root, mode: 'imports' }, signal);
+  const files = scan.payload?.imports?.files;
+  if (!scan.ok || !files) return undefined;
+  const map: TestImportMap = {};
+  for (const entry of files) {
+    if (!isRunnableTestFile(entry.path) && basename(entry.path) !== 'conftest.py') continue;
+    if (!entry.importModules?.length) continue;
+    map[entry.path] = entry.importModules;
+  }
+  return map;
 }
 
 export function registerTestingTools(pi: Pi): void {
@@ -68,9 +94,19 @@ export function registerTestingTools(pi: Pi): void {
           changedSource = discovered.source === 'git' ? 'git' : (discovered.error ?? 'none');
         }
         const testFiles = params.testFiles ?? (await listTestFiles(root));
-        const selection = selectTests(changed, testFiles);
+        const testImports = params.testFiles
+          ? undefined
+          : await collectTestImports(root, ctx.cwd, signal);
+        const selection = selectTests(changed, testFiles, { testImports });
+        // Only files pytest collects tests from become targets; naming
+        // `tests/utils.py` as a target overstates the run.
+        const targets = selection.selected
+          .filter(
+            (entry) => isRunnableTestFile(entry.path) || basename(entry.path) === 'conftest.py',
+          )
+          .map((entry) => entry.path);
         const command = pytestCommand(ctx.cwd, {
-          targets: selection.fellBackToAll ? [] : selection.selected.map((entry) => entry.path),
+          targets: selection.fellBackToAll ? [] : targets,
         });
 
         return text(
@@ -81,8 +117,14 @@ export function registerTestingTools(pi: Pi): void {
               `for ${selection.changedSourceFiles.length} changed source file(s) (${changedSource}).` +
               (selection.fellBackToAll
                 ? ' No match was found, so the full suite is in scope.'
-                : ''),
-            data: { ...selection, pytestTargets: selection.selected.map((entry) => entry.path) },
+                : selection.narrowed
+                  ? ''
+                  : ' Every candidate matched, so nothing was narrowed.'),
+            data: {
+              ...selection,
+              pytestTargets: targets,
+              noNarrowing: !selection.fellBackToAll && !selection.narrowed,
+            },
             evidence: [
               {
                 kind: 'test_selection',
@@ -90,10 +132,12 @@ export function registerTestingTools(pi: Pi): void {
                 changedTestFiles: selection.changedTestFiles,
                 selected: selection.selected,
                 fellBackToAll: selection.fellBackToAll,
+                narrowed: selection.narrowed,
+                importEvidenceUsed: selection.importEvidenceUsed,
               },
             ],
-            warnings:
-              testFiles.length === 0
+            warnings: [
+              ...(testFiles.length === 0
                 ? [
                     {
                       code: 'NO_TEST_FILES',
@@ -102,7 +146,27 @@ export function registerTestingTools(pi: Pi): void {
                       severity: 'warning' as const,
                     },
                   ]
-                : [],
+                : []),
+              ...(!selection.fellBackToAll && !selection.narrowed && selection.selected.length > 0
+                ? [
+                    {
+                      code: 'NO_NARROWING',
+                      message: `${selection.selected.length} of ${testFiles.length} test file(s) matched, so this selection is the whole suite rather than a focused target.`,
+                      severity: 'warning' as const,
+                    },
+                  ]
+                : []),
+              ...(selection.fellBackToAll || (!selection.importEvidenceUsed && changed.length > 0)
+                ? [
+                    {
+                      code: 'SELECTION_WITHOUT_IMPORT_EVIDENCE',
+                      message:
+                        'No candidate was matched by an actual import of a changed module, so this selection rests on file naming alone. Run the full suite or py_test with lastFailed=true when the change is broad.',
+                      severity: 'warning' as const,
+                    },
+                  ]
+                : []),
+            ],
             errors: [],
             suggestions: selection.selected.length
               ? [
@@ -131,6 +195,7 @@ export function registerTestingTools(pi: Pi): void {
     promptGuidelines: [
       'Use py_test with execute=false first; a preview is never a passing test run.',
       'Use py_test after changing Python sources; it does not rebuild anything, so run py_sync first when dependencies changed.',
+      'Use py_test with extraArgs to run project-standard pytest flags such as coverage options that the tool does not model directly.',
     ],
     parameters: Type.Object({
       targets: Type.Optional(Type.Array(Type.String())),
@@ -138,6 +203,12 @@ export function registerTestingTools(pi: Pi): void {
         Type.Boolean({ description: 'Rerun only tests that failed last time (--lf).' }),
       ),
       keyword: Type.Optional(Type.String({ description: 'pytest -k expression.' })),
+      extraArgs: Type.Optional(
+        Type.Array(Type.String(), {
+          description:
+            'Extra pytest arguments passed verbatim as an argument array, e.g. ["--cov=my_pkg", "--cov-branch"] or ["-m", "unit"].',
+        }),
+      ),
       maxFail: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
       execute: Type.Optional(Type.Boolean()),
       timeoutSeconds: Type.Optional(Type.Integer({ minimum: 1, maximum: 3600 })),
@@ -151,6 +222,7 @@ export function registerTestingTools(pi: Pi): void {
           targets: params.targets,
           lastFailed: params.lastFailed,
           keyword: params.keyword,
+          extraArgs: params.extraArgs,
           maxFail: params.maxFail,
         });
         if (!params.execute) {

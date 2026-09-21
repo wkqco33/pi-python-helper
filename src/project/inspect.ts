@@ -5,6 +5,7 @@ import {
   type ConformanceReport,
 } from './conformance.ts';
 import type { InstalledEnvironment } from './installed.ts';
+import type { PytestConfiguration } from './pytest-config.ts';
 import type { LockComparison, LockSection, ManifestSection, ScanPayload } from './scanner.ts';
 
 export interface ProjectInspection {
@@ -44,6 +45,13 @@ export interface InspectInput {
   /** `undefined` when no .gitignore exists, so the check stays honest. */
   venvIgnored?: boolean;
   hasTestsDirectory: boolean;
+  /** Test directories found relative to the root; names them in the diagnostic. */
+  testDirectories?: string[];
+  /**
+   * Where pytest configuration was found. The scanner only reads
+   * `pyproject.toml`, so INI files are decided by the caller.
+   */
+  pytestConfiguration?: PytestConfiguration;
   /** Distributions read from `.venv`; omit to skip the conformance comparison. */
   installed?: InstalledEnvironment;
 }
@@ -220,6 +228,8 @@ function collectEnvironmentDiagnostics(
   venvDir: string | undefined,
   venvIgnored: boolean | undefined,
   hasTestsDirectory: boolean,
+  testDirectories: string[] | undefined,
+  pytestConfiguration: PytestConfiguration | undefined,
   collector: DiagnosticCollector,
 ): void {
   if (!venvDir) {
@@ -246,15 +256,27 @@ function collectEnvironmentDiagnostics(
     collector.notes.push({
       code: 'TESTS_DIRECTORY_MISSING',
       message:
-        'No tests/ directory was found; test selection and TDD gates cannot match changed sources.',
+        'No tests directory was found in the project root or inside a top-level package, so test selection and TDD gates cannot match changed sources.',
+      severity: 'info',
+    });
+  } else if (testDirectories && testDirectories.length > 0) {
+    collector.notes.push({
+      code: 'TESTS_DIRECTORY_FOUND',
+      message: `Tests live in ${testDirectories.slice(0, 4).join(', ')}${testDirectories.length > 4 ? `, … (+${testDirectories.length - 4})` : ''}. Confirm testpaths covers them when running pytest without a target.`,
       severity: 'info',
     });
   }
 
-  if (manifest?.pyprojectPath && manifest.toolConfiguration && !manifest.toolConfiguration.pytest) {
+  // pytest can be configured from pytest.ini, tox.ini, or setup.cfg, not only
+  // from pyproject.toml; checking one file reported "not configured" for most
+  // projects that use pytest's own configuration file.
+  const pytestConfigured =
+    pytestConfiguration?.configured ?? manifest?.toolConfiguration?.pytest === true;
+  if (manifest?.pyprojectPath && !pytestConfigured) {
     collector.notes.push({
       code: 'PYTEST_NOT_CONFIGURED',
-      message: 'pyproject.toml has no [tool.pytest.ini_options] table.',
+      message:
+        'No pytest configuration was found in pyproject.toml, pytest.ini, tox.ini, or setup.cfg.',
       severity: 'info',
     });
   }
@@ -283,7 +305,15 @@ function collectEnvironmentDiagnostics(
  * whole diagnostic surface is unit-testable without touching a filesystem.
  */
 export function inspectProject(input: InspectInput): ProjectInspection {
-  const { payload, venvDir, venvIgnored, hasTestsDirectory, installed } = input;
+  const {
+    payload,
+    venvDir,
+    venvIgnored,
+    hasTestsDirectory,
+    testDirectories,
+    pytestConfiguration,
+    installed,
+  } = input;
   const manifest = payload.manifest;
   const lock = payload.lock;
   const comparison = payload.lockComparison;
@@ -292,7 +322,16 @@ export function inspectProject(input: InspectInput): ProjectInspection {
   const collector: DiagnosticCollector = { warnings: [], notes: [], suggestions: [] };
   collectManifestDiagnostics(manifest, root, collector);
   collectLockDiagnostics(lock, comparison, collector);
-  collectEnvironmentDiagnostics(root, manifest, venvDir, venvIgnored, hasTestsDirectory, collector);
+  collectEnvironmentDiagnostics(
+    root,
+    manifest,
+    venvDir,
+    venvIgnored,
+    hasTestsDirectory,
+    testDirectories,
+    pytestConfiguration,
+    collector,
+  );
 
   const { warnings, notes, suggestions } = collector;
 
@@ -311,7 +350,7 @@ export function inspectProject(input: InspectInput): ProjectInspection {
     if (conformance.findings.some((finding) => finding.code === 'PROJECT_NOT_INSTALLED')) {
       suggestions.push({
         message:
-          'The project is not installed in .venv. Run uv sync; if that fails, the build backend could not find the package (check that the module directory name matches [project] name).',
+          'The project is recorded as an editable install but is missing from .venv. Run uv sync; if that fails, the build backend could not find the package (check that the module directory name matches [project] name).',
         confidence: 'high',
         command: 'uv sync',
       });

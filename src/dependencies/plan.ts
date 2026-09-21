@@ -63,7 +63,16 @@ export interface UndeclaredImport {
   files: string[];
   fileCount: number;
   providers: string[];
-  suggestedDistribution: string;
+  /**
+   * The distribution to declare, when the analysing interpreter could determine
+   * it. Absent otherwise: `uv add <import name>` would then install a different
+   * package, or nothing at all, because import names and distribution names
+   * frequently disagree (`wconfig` ships inside `wpyconf`, `yaml` inside
+   * `PyYAML`).
+   */
+  suggestedDistribution?: string;
+  /** True when the suggestion comes from installed metadata rather than a guess. */
+  providerKnown: boolean;
   typeCheckingOnly: boolean;
   reason: string;
 }
@@ -95,6 +104,12 @@ export interface DependencyPlan {
     requiresPythonMismatch: { manifest: string; lock: string } | null;
   };
   providerMappingReliable: boolean;
+  /**
+   * Third-party imports the analysing interpreter could not map to an installed
+   * distribution. A high count means the interpreter is not the project's own,
+   * so "undeclared" may really be "import name differs from distribution name".
+   */
+  unmappedImports: number;
   unparsable: { path: string; error: string }[];
   warnings: Diagnostic[];
   notes: Diagnostic[];
@@ -147,13 +162,19 @@ export function planDependencies(
     const runtimeRelevant = !entry.typeCheckingOnly && runtimeFiles.length > 0;
 
     if (matched.length === 0) {
+      // Prefer the distribution that actually owns the module. The static alias
+      // table is a fallback for checkouts where nothing is installed.
+      const suggested =
+        entry.providers[0] ??
+        IMPORT_ALIASES[entry.import]?.[0] ??
+        IMPORT_ALIASES[normalizeName(entry.import)]?.[0];
       undeclared.push({
         import: entry.import,
         files: entry.files,
         fileCount: entry.fileCount,
         providers: entry.providers,
-        suggestedDistribution:
-          entry.providers[0] ?? IMPORT_ALIASES[entry.import]?.[0] ?? entry.import,
+        suggestedDistribution: suggested,
+        providerKnown: suggested !== undefined,
         typeCheckingOnly: entry.typeCheckingOnly,
         reason: entry.typeCheckingOnly
           ? 'imported only under TYPE_CHECKING and declared in neither [project] tables nor uv.lock'
@@ -199,11 +220,21 @@ export function planDependencies(
         entry.files[0],
       ),
     );
-    suggestions.push({
-      message: `Declare ${entry.suggestedDistribution} with uv add${entry.typeCheckingOnly ? ' --dev' : ''} ${entry.suggestedDistribution}.`,
-      confidence: entry.providers.length ? 'high' : 'medium',
-      command: `uv add${entry.typeCheckingOnly ? ' --dev' : ''} ${entry.suggestedDistribution}`,
-    });
+    const distribution = entry.suggestedDistribution;
+    if (distribution) {
+      const flag = entry.typeCheckingOnly ? ' --dev' : '';
+      suggestions.push({
+        message: `Declare ${distribution} with uv add${flag} ${distribution}.`,
+        confidence: entry.providers.length ? 'high' : 'medium',
+        command: `uv add${flag} ${distribution}`,
+      });
+    } else {
+      // Fabricating a command here would install the wrong package or fail.
+      suggestions.push({
+        message: `Look up the distribution that provides "${entry.import}" and declare that name: import names and distribution names frequently disagree, and the analysing interpreter could not map this one.`,
+        confidence: 'low',
+      });
+    }
   }
 
   for (const entry of misplaced) {
@@ -252,11 +283,22 @@ export function planDependencies(
     });
   }
 
+  const thirdPartyCount = imports?.thirdParty.length ?? 0;
+  const unmappedImports = (imports?.thirdParty ?? []).filter(
+    (entry) => entry.providers.length === 0,
+  ).length;
+
   if (imports?.providersUnavailable) {
     notes.push({
       code: 'PROVIDER_MAPPING_HEURISTIC',
       message:
         'No installed distributions were visible to the analysing interpreter, so import-to-distribution mapping relied on a static alias table.',
+      severity: 'info',
+    });
+  } else if (unmappedImports > 0) {
+    notes.push({
+      code: 'UNMAPPED_IMPORTS',
+      message: `${unmappedImports} of ${thirdPartyCount} third-party import(s) could not be mapped to an installed distribution, so their distribution names are unknown rather than merely undeclared.`,
       severity: 'info',
     });
   }
@@ -288,7 +330,14 @@ export function planDependencies(
     misplaced,
     unused,
     drift,
-    providerMappingReliable: !(imports?.providersUnavailable ?? true),
+    // A partial mapping is disclosed through `unmappedImports`; the claim here is
+    // only that the interpreter could see an installed environment at all. When
+    // it could see one yet owned none of the project's imports, it is not the
+    // project's interpreter and nothing it reports should be trusted.
+    providerMappingReliable:
+      !(imports?.providersUnavailable ?? true) &&
+      !(thirdPartyCount > 0 && unmappedImports === thirdPartyCount),
+    unmappedImports,
     unparsable: imports?.unparsable ?? [],
     warnings,
     notes,

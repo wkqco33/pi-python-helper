@@ -19,8 +19,23 @@ export function uvLock(cwd: string): CommandPreview {
   return { executable: 'uv', args: ['lock'], cwd, risk: 'mutating' };
 }
 
-export function uvSyncFrozen(cwd: string): CommandPreview {
-  return { executable: 'uv', args: ['sync', '--frozen', '--all-groups'], cwd, risk: 'mutating' };
+export interface UvSyncOptions {
+  /**
+   * `all` requests every extra declared in `[project.optional-dependencies]`.
+   *
+   * `uv sync --all-groups` covers `[dependency-groups]` only, so a project that
+   * declares pytest/ruff/pyright as an extra has them **removed** by a plain
+   * sync. Installing more than needed is recoverable; deleting the project's
+   * own dev tooling mid-run is not, so extras are requested by default.
+   */
+  extras?: 'all' | 'none';
+}
+
+export function uvSyncFrozen(cwd: string, options: UvSyncOptions = {}): CommandPreview {
+  const extras = options.extras ?? 'all';
+  const args = ['sync', '--frozen', '--all-groups'];
+  if (extras === 'all') args.push('--all-extras');
+  return { executable: 'uv', args, cwd, risk: 'mutating' };
 }
 
 export function uvRun(cwd: string, args: string[]): CommandPreview {

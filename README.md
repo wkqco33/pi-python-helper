@@ -46,7 +46,7 @@ pi -e /absolute/path/to/pi-python-helper
 
 ### 1. 환경 및 프로젝트 진단 (Environment & Manifest Check)
 원시 쉘 명령어로 환경을 탐색하기 전에 전용 도구로 런타임과 설정의 무결성을 먼저 확인합니다.
-- **인터프리터 점검**: 잘못된 Python 실행 파일이나 가상환경 미활성화로 인한 혼란을 방지합니다 (`py_environment`).
+- **인터프리터 점검**: 잘못된 Python 실행 파일이나 가상환경 미활성화로 인한 혼란을 방지합니다 (`py_environment`). `interpreterOrigin`은 분석에 쓰인 인터프리터가 프로젝트 환경인지(`venv`) PATH인지(`path`)를 밝히며, 도구 가용성은 "지금 실행 가능"을 뜻하는 `available`과 "uv sync로 설치 가능"을 뜻하는 `installable`로 구분됩니다.
 - **3자 정합성 검사**: `pyproject.toml`(선언) ↔ `uv.lock`(해석) ↔ `.venv`(실제 설치)가 서로 일치하는지 검사하고, lockfile 드리프트나 동기화 누락을 감지합니다 (`py_project_inspect`).
 
 ### 2. 의존성 분석 및 관리 (Dependency Analysis)
@@ -60,15 +60,15 @@ pi -e /absolute/path/to/pi-python-helper
 
 ### 3. 스마트 테스트 선별 및 실패 진단 (Testing & Diagnostics)
 전체 테스트를 매번 실행하지 않고, 변경 사항에 기반하여 효율적으로 테스트를 수행합니다.
-- **테스트 자동 선별**: pytest 규약과 토큰 연관성을 기반으로 변경된 파일과 관련된 테스트만 선택합니다 (`py_test_select`). 매칭이 어려울 경우 안전하게 전체 스위트로 폴백합니다.
-- **테스트 실행 및 요약**: `uv run --frozen pytest`를 안전하게 실행하고 passed/failed/errors 카운트 및 실패 노드를 구조화하여 추출합니다 (`py_test`). `--lf`(직전 실패만 재실행), `-k` 필터 등을 지원합니다.
-- **원인 프레임 진단**: 테스트 실패 시 긴 traceback 속에서 `site-packages`나 표준 라이브러리 프레임을 배제하고, **실제 프로젝트 코드에서 가장 먼저 발생한 원인 프레임**을 지목합니다 (`py_failure_diagnose`).
+- **테스트 자동 선별**: pytest 규약, 실제 import 관계, 토큰 연관성을 기반으로 변경된 파일과 관련된 테스트만 선택합니다 (`py_test_select`). 패키지 안에 테스트가 있는 레이아웃(`<package>/tests/`)에서 이름만 겹치는 후보는 걸러지고, 테스트가 변경 모듈을 실제로 import하면 그것이 가장 강한 근거가 됩니다. 아무것도 좁혀지지 않으면 `narrowed: false`와 `NO_NARROWING` 경고로 밝히고, 근거가 이름뿐이면 `SELECTION_WITHOUT_IMPORT_EVIDENCE`로 알립니다.
+- **테스트 실행 및 요약**: `uv run --frozen pytest`를 안전하게 실행하고 passed/failed/errors 카운트 및 실패 노드를 구조화하여 추출합니다 (`py_test`). `--lf`(직전 실패만 재실행), `-k` 필터, 그리고 커버리지 플래그 같은 프로젝트 표준 옵션을 위한 `extraArgs`를 지원합니다.
+- **원인 프레임 진단**: 테스트 실패 시 긴 traceback 속에서 `site-packages`나 표준 라이브러리 프레임을 배제하고, **실제 프로젝트 코드에서 가장 먼저 발생한 원인 프레임**을 지목합니다 (`py_failure_diagnose`). 도구를 실행할 수 없는 환경 실패(`Failed to spawn: \`pytest\``, `command not found`)는 `tool_not_installed`로 분류하여 코드 문제로 오해하지 않게 합니다.
 
 ### 4. 품질 검증 게이트 및 동기화 (Validation Gates)
 작업을 완료했다고 보고하기 전에 확실한 증거를 수집합니다.
-- **TDD 체크포인트**: 프로덕션 코드 변경에 대응하는 테스트 코드 수정이 있었는지 확인합니다 (`py_tdd_checkpoint`).
-- **가상환경 동기화**: `uv lock --check` 및 `uv sync --frozen`을 통해 lock과 venv를 일치시킵니다 (`py_sync`).
-- **종합 검증 번들**: lock 검사 → sync → pytest → 환경 정합성 → 오래된 아티팩트 검사를 하나의 검증 시퀀스로 실행하여 신뢰할 수 있는 완료 판정을 도출합니다 (`py_validation_bundle`, `py_completion_evidence`).
+- **TDD 체크포인트**: 프로덕션 코드 변경에 대응하는 테스트 코드 수정이 있었는지 확인합니다 (`py_tdd_checkpoint`). 어떤 경로가 어떤 토큰으로 연결되었는지(`associations`)를 근거로 남기고, 패키지 접두사만 겹치는 약한 연결은 `weakAssociation`으로 공개합니다.
+- **가상환경 동기화**: `uv lock --check` 및 `uv sync --frozen --all-groups --all-extras`를 통해 lock과 venv를 일치시킵니다 (`py_sync`). `[project.optional-dependencies]`의 extra를 함께 요청하므로, dev 도구를 extra로 선언한 프로젝트에서도 `uv sync`가 pytest/ruff/pyright를 삭제하지 않습니다. 설치 목록에서 제거된 패키지가 있으면 `SYNC_REMOVED_PACKAGES` 경고로 알리고, sync 후 pytest가 없으면 테스트 단계를 건너뛴 이유를 명시합니다.
+- **종합 검증 번들**: lock 검사 → sync → pytest → 선언된 품질 검사(ruff/pyright) → 환경 정합성 → 오래된 아티팩트 검사를 하나의 검증 시퀀스로 실행하여 신뢰할 수 있는 완료 판정을 도출합니다 (`py_validation_bundle`, `py_completion_evidence`).
 
 > 💡 각 도구의 상세 파라미터 스키마 및 반환값 규격은 [도구 레퍼런스 (docs/tools.md)](docs/tools.md)를 참고하세요.
 
@@ -89,6 +89,8 @@ pi -e /absolute/path/to/pi-python-helper
 
 **오탐 억제 (False-positive Control)**:
 - OS나 파이썬 버전 조건부 패키지(`sys_platform == 'win32'`, `python_version < '3.11'`)는 환경에 맞게 설치되지 않는 것이 정상이므로, 마커를 분석하여 무조건 필요한 패키지만 누락으로 판정합니다.
+- uv가 같은 이름을 마커별로 여러 항목으로 기록하는 경우(`argon2-cffi-bindings`가 Python 3.14에 21.2.0, 그 미만에 25.1.0), 설치 버전이 항목 중 하나와 일치하면 일치로 판정하고 `MARKER_SPLIT_LOCK_ENTRIES` 노트로 공개합니다.
+- `[build-system]`이 없는 프로젝트는 uv가 `source = { virtual = "." }`로 기록하며 `.venv`에 설치되지 않습니다. 이 경우 누락이 아니라 `PROJECT_VIRTUAL_SOURCE` 노트로 설명합니다.
 - pip, setuptools 등의 부트스트랩 배포판은 불일치 비교에서 제외합니다.
 
 ### 3. 오래된 아티팩트 탐지 (Stale Artifact Detection)

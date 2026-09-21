@@ -300,3 +300,87 @@ test('a missing lockfile is a note with a suggested command, not a warning', () 
   assert.equal(inspection.warnings.length, 0);
   assert.ok(inspection.suggestions.some((entry) => entry.command === 'uv lock'));
 });
+
+test('a declared distribution that owns the import clears the undeclared warning', () => {
+  // `wconfig` ships inside the distribution `wpyconf`. Only the installed
+  // metadata connects the two, so without provider mapping this reported a
+  // warning that declaring the correct distribution could not clear.
+  const plan = planDependencies(
+    payload({
+      manifest: manifest({ dependencies: [dependency('wpyconf==0.2.3')] }),
+      thirdParty: [{ import: 'wconfig', files: ['pkg/config.py'], providers: ['wpyconf'] }],
+    }),
+  );
+  assert.deepEqual(plan.undeclared, []);
+  assert.deepEqual(plan.suggestions, []);
+  assert.equal(plan.unmappedImports, 0);
+  assert.equal(plan.providerMappingReliable, true);
+});
+
+test('a genuinely undeclared import is suggested by its providing distribution', () => {
+  const plan = planDependencies(
+    payload({
+      thirdParty: [{ import: 'wconfig', files: ['pkg/config.py'], providers: ['wpyconf'] }],
+    }),
+  );
+  assert.equal(plan.undeclared.length, 1);
+  assert.equal(plan.undeclared[0].suggestedDistribution, 'wpyconf');
+  assert.equal(plan.undeclared[0].providerKnown, true);
+  assert.equal(plan.suggestions[0].command, 'uv add wpyconf');
+  assert.equal(plan.suggestions[0].confidence, 'high');
+});
+
+test('an unmappable import never gets a fabricated uv add command', () => {
+  const plan = planDependencies(
+    payload({ thirdParty: [{ import: 'wconfig', files: ['pkg/config.py'], providers: [] }] }),
+  );
+  assert.equal(plan.undeclared.length, 1);
+  assert.equal(plan.undeclared[0].suggestedDistribution, undefined);
+  assert.equal(plan.undeclared[0].providerKnown, false);
+  // `uv add wconfig` would install a different package or nothing at all.
+  assert.equal(
+    plan.suggestions.some((entry) => entry.command !== undefined),
+    false,
+  );
+  assert.match(plan.suggestions[0].message, /distribution names frequently disagree/);
+  assert.equal(plan.suggestions[0].confidence, 'low');
+  assert.ok(plan.notes.some((entry) => entry.code === 'UNMAPPED_IMPORTS'));
+});
+
+test('a static alias still supplies a name when no metadata is available', () => {
+  const plan = planDependencies(
+    payload({ thirdParty: [{ import: 'yaml', files: ['pkg/config.py'], providers: [] }] }),
+  );
+  assert.equal(plan.undeclared[0].suggestedDistribution, 'pyyaml');
+  assert.equal(plan.suggestions[0].command, 'uv add pyyaml');
+});
+
+test('an interpreter that owns none of the project imports is not trusted', () => {
+  // The host `python3` maps a handful of its own modules, so `providers` is not
+  // empty and `providersUnavailable` is false, yet none of the project's
+  // imports resolve. That combination must not be reported as reliable.
+  const plan = planDependencies(
+    payload({
+      thirdParty: [
+        { import: 'wconfig', files: ['pkg/a.py'], providers: [] },
+        { import: 'wlogger', files: ['pkg/b.py'], providers: [] },
+      ],
+    }),
+  );
+  assert.equal(plan.unmappedImports, 2);
+  assert.equal(plan.providerMappingReliable, false);
+});
+
+test('a partially mapped environment stays reliable but discloses the gap', () => {
+  const plan = planDependencies(
+    payload({
+      thirdParty: [
+        { import: 'yaml', files: ['pkg/a.py'], providers: ['PyYAML'] },
+        { import: 'wconfig', files: ['pkg/b.py'], providers: [] },
+      ],
+    }),
+  );
+  assert.equal(plan.unmappedImports, 1);
+  assert.equal(plan.providerMappingReliable, true);
+  assert.ok(plan.notes.some((entry) => entry.code === 'UNMAPPED_IMPORTS'));
+});
