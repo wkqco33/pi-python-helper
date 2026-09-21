@@ -9,7 +9,13 @@ does not guarantee a stable public tool schema.
 
 ### Added
 
-- Every tool response carries `attention`: `true` whenever the caller must act (`ok: false`, or any warning or error). It is derived centrally in `result()`, so `ok: false` always implies `attention: true` and no diagnostic is silently dropped. `ok` is now documented as the tool's **verdict** — "the project state is acceptable / the command succeeded / the gate may proceed" — rather than "the tool ran", so a check that finds a problem still returns `ok: false` without having failed.
+- `py_test_config` audits the pytest configuration pytest will actually use against the plugins the project declares and the tests on disk. It reports the cases that make a run look green while tests never execute (`ASYNC_TESTS_WITHOUT_PLUGIN`, `ASYNC_TESTS_REQUIRE_MARKER`), the options pytest rejects before collection (`ASYNCIO_MODE_WITHOUT_PLUGIN`, `COVERAGE_OPTION_WITHOUT_PLUGIN`), and a `testpaths` entry that does not exist (`TESTPATH_MISSING`). Only syntax separates an unmarked coroutine test from a marked one, so the decision is made on the AST rather than by matching text.
+- The scanner reports `[tool.pytest.ini_options]` as `manifest.pytestOptions` and, per scanned file, `asyncTests` and `asyncioMarkedTests` (protocol version 3).
+- Every tool response carries `attention`: `true` whenever the caller must act (`ok: false`, or a warning or error). It is derived centrally in `result()`, so `ok: false` always implies `attention: true` and no diagnostic is silently dropped. `ok` is now documented as the tool's **verdict** — "the project state is acceptable / the command succeeded / the gate may proceed" — rather than "the tool ran", so a check that finds a problem still returns `ok: false` without having failed. An `info` diagnostic is informational and does not raise `attention`.
+
+### Changed
+
+- **Breaking:** scanner protocol `SCANNER_VERSION` is now 3. A scanner reporting version 2 is rejected with `SCANNER_VERSION_MISMATCH`.
 
 ### Fixed
 

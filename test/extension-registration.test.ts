@@ -41,6 +41,7 @@ const EXPECTED_TOOLS = [
   'py_completion_evidence',
   'py_test_select',
   'py_test',
+  'py_test_config',
   'py_failure_diagnose',
   'py_sync',
   'py_validation_bundle',
@@ -113,6 +114,42 @@ test('py_test_select always explains a verdict instead of failing silently', asy
   assert.equal(details.ok, true);
   assert.equal(details.attention, true);
   assert.ok(details.warnings.some((entry) => entry.code === 'NO_CHANGED_PATHS'));
+});
+
+test('py_test_config reports async tests that no marker will run', async (t) => {
+  const { resolveInterpreter } = await import('../src/project/scanner.ts');
+  if (!(await resolveInterpreter(process.cwd()))) {
+    t.skip('no Python 3 interpreter available');
+    return;
+  }
+  const root = await mkdtemp(join(tmpdir(), 'py-testcfg-'));
+  try {
+    await mkdir(join(root, 'tests'), { recursive: true });
+    await writeFile(
+      join(root, 'pyproject.toml'),
+      '[project]\nname = "cfg-pkg"\nversion = "0.1.0"\nrequires-python = ">=3.11"\ndependencies = []\n\n[dependency-groups]\ndev = ["pytest-asyncio>=1.3.0"]\n',
+    );
+    await writeFile(join(root, 'tests', 'test_api.py'), 'async def test_unmarked():\n    pass\n');
+
+    const { tools } = loadExtension();
+    const tool = tools.get('py_test_config');
+    assert.ok(tool);
+    const response = await tool.execute('id', {}, undefined, undefined, { cwd: root });
+    const details = response.details as {
+      ok: boolean;
+      attention: boolean;
+      errors: { code: string }[];
+      data: { sources: string[]; unmarkedAsyncTests: { path: string; tests: string[] }[] };
+    };
+    assert.equal(details.ok, false);
+    assert.equal(details.attention, true);
+    assert.ok(details.errors.some((entry) => entry.code === 'ASYNC_TESTS_REQUIRE_MARKER'));
+    assert.deepEqual(details.data.unmarkedAsyncTests, [
+      { path: 'tests/test_api.py', tests: ['test_unmarked'] },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('py_failure_diagnose points at the project frame, not site-packages', async () => {

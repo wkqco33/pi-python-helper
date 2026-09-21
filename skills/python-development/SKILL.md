@@ -19,11 +19,12 @@ license: Apache-2.0
 4. import 이름과 배포 이름은 다를 수 있습니다(`PIL`/`pillow`, `yaml`/`PyYAML`). `py_dependency_plan`의 제안을 `uv add`로 적용하세요.
 5. 소스 코드를 수정한 후에는 `py_test_select`로 변경 파일과 연관된 테스트를 선별하세요. 테스트가 변경 모듈을 **실제로 import**하면 가장 강한 근거이며, 이름 규약은 그 다음입니다. `narrowed: false`나 `NO_NARROWING`은 "30개 중 30개 선택"처럼 결과가 좁혀지지 않았다는 뜻이고, `SELECTION_WITHOUT_IMPORT_EVIDENCE`는 근거가 파일 이름뿐이라는 뜻이므로 변경이 넓다면 전체 스위트나 `lastFailed=true`를 사용하세요.
 6. 테스트 실행은 `py_test`를 사용하세요. `execute=false`로 먼저 미리보기하고, 실제 실행 시에만 `execute=true`를 전달합니다. 커버리지 플래그나 `-m` 마커 선택처럼 도구가 모델링하지 않는 프로젝트 표준 옵션은 `extraArgs`로 넘기세요.
-7. 실패 출력이 있을 때는 `py_failure_diagnose`를 사용하세요. `site-packages` 내부 프레임은 원인이 아니며, 도구는 첫 번째 프로젝트 프레임을 지목합니다. 실행 파일을 찾지 못해 명령이 시작되지 못한 경우(`Failed to spawn`, `command not found`)는 `tool_not_installed`로 분류됩니다.
-8. 의존성이 바뀌었거나 `.venv`가 오래된 경우 `py_sync`로 `uv lock --check` 또는 `uv sync --frozen`을 미리보기/실행하세요. sync는 `[project.optional-dependencies]`의 extra를 함께 요청하므로 dev 도구가 extra로 선언된 프로젝트에서도 삭제되지 않습니다. `SYNC_REMOVED_PACKAGES`가 보이면 그것이 이후 "command not found"의 원인입니다.
-9. 재현이 어려운 실패는 `py_test`의 `lastFailed=true`(`--lf`)로 직전 실패만 다시 실행하세요.
-10. 작업 완료를 보고하기 전에 `py_validation_bundle`(lock 검사 → sync → pytest → 환경 정합성 → 오래된 아티팩트 검사)을 실행하고, `py_completion_evidence`로 근거가 충분한지 확인하세요. 정합성이 `drifted`나 `unverifiable`이면 테스트가 통과했어도 게이트는 실패합니다. 각 응답에서 조치 필요 여부는 `attention`으로 판단하세요.
-11. `py_tdd_checkpoint`로 프로덕션 변경에 대응하는 테스트 변경이 있는지 확인하세요.
+7. 테스트가 예상보다 적게 실행되거나 초록색 결과를 믿기 어려울 때는 `py_test_config`로 pytest 설정을 검증하세요. `ASYNC_TESTS_WITHOUT_PLUGIN`/`ASYNC_TESTS_REQUIRE_MARKER`는 async 테스트가 **수집만 되고 실행되지 않는** 상태(플러그인 미선언 또는 `asyncio_mode` 미설정 + 마커 없음)를 뜻하며, `COVERAGE_OPTION_WITHOUT_PLUGIN`과 `ASYNCIO_MODE_WITHOUT_PLUGIN`은 실행 전에 pytest가 오류로 중단되는 설정입니다. `TESTPATH_MISSING`은 `testpaths`가 존재하지 않는 디렉터리를 가리킨다는 경고입니다.
+8. 실패 출력이 있을 때는 `py_failure_diagnose`를 사용하세요. `site-packages` 내부 프레임은 원인이 아니며, 도구는 첫 번째 프로젝트 프레임을 지목합니다. 실행 파일을 찾지 못해 명령이 시작되지 못한 경우(`Failed to spawn`, `command not found`)는 `tool_not_installed`로 분류됩니다.
+9. 의존성이 바뀌었거나 `.venv`가 오래된 경우 `py_sync`로 `uv lock --check` 또는 `uv sync --frozen`을 미리보기/실행하세요. sync는 `[project.optional-dependencies]`의 extra를 함께 요청하므로 dev 도구가 extra로 선언된 프로젝트에서도 삭제되지 않습니다. `SYNC_REMOVED_PACKAGES`가 보이면 그것이 이후 "command not found"의 원인입니다.
+10. 재현이 어려운 실패는 `py_test`의 `lastFailed=true`(`--lf`)로 직전 실패만 다시 실행하세요.
+11. 작업 완료를 보고하기 전에 `py_validation_bundle`(lock 검사 → sync → pytest → 환경 정합성 → 오래된 아티팩트 검사)을 실행하고, `py_completion_evidence`로 근거가 충분한지 확인하세요. 정합성이 `drifted`나 `unverifiable`이면 테스트가 통과했어도 게이트는 실패합니다. 각 응답에서 조치 필요 여부는 `attention`으로 판단하세요.
+12. `py_tdd_checkpoint`로 프로덕션 변경에 대응하는 테스트 변경이 있는지 확인하세요.
 
 ## 안전 규칙 (Safety)
 

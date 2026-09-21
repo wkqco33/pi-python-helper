@@ -1,6 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { open } from 'node:fs/promises';
-import { basename, dirname, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { findProjectRoot, isDirectory, isFile } from '../src/project/root.ts';
 
 export type Pi = ExtensionAPI;
@@ -69,4 +69,16 @@ export async function readTextIfExists(
 
 export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** INI files that can carry pytest configuration, in the order they are read. */
+export const PYTEST_INI_FILES = ['pytest.ini', 'tox.ini', 'setup.cfg'] as const;
+
+export async function readPytestIniFiles(
+  root: string,
+): Promise<Record<string, string | undefined>> {
+  const entries = await Promise.all(
+    PYTEST_INI_FILES.map(async (name) => [name, await readTextIfExists(join(root, name))] as const),
+  );
+  return Object.fromEntries(entries);
 }

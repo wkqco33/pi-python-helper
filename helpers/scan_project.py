@@ -37,7 +37,10 @@ from pathlib import Path
 # caller can refuse to interpret a document it does not understand.
 # 2: each scanned file reports `importModules`, the full dotted module names it
 #    references, so test selection can map a test file to the module it imports.
-SCANNER_VERSION = 2
+# 3: the manifest reports `[tool.pytest.ini_options]` as `pytestOptions`, and each
+#    scanned file reports `asyncTests`/`asyncioMarkedTests`, so a configuration
+#    audit can tell an async test that runs from one that is silently skipped.
+SCANNER_VERSION = 3
 
 KNOWN_SECTIONS = ("environment", "manifest", "imports")
 EXIT_OK = 0
@@ -234,6 +237,62 @@ def detect_layout(root: Path) -> tuple[str, list[str]]:
     return layout, sorted(set(modules))
 
 
+def json_safe(value):
+    """Recursively coerce a TOML value into something `json.dumps` accepts.
+
+    `tomllib` can produce datetimes, which are valid TOML but not JSON; a single
+    one would turn the whole document into a scanner crash.
+    """
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+ASYNC_MARKERS = {"asyncio", "anyio", "trio"}
+
+
+def _dotted_name(node: ast.AST) -> str:
+    """Rebuild `a.b.c` from an attribute chain, or "" when it is not one."""
+    parts = []
+    current = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return ""
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def async_test_functions(tree: ast.AST) -> tuple:
+    """Async test functions and the subset that carries an async marker.
+
+    pytest-asyncio's default `strict` mode runs a coroutine test only when it is
+    marked, so an unmarked `async def test_*` is collected and then silently
+    skipped. Only the syntax distinguishes the two, so this must be an AST walk
+    rather than a text search.
+    """
+    async_tests: list = []
+    marked: list = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.AsyncFunctionDef):
+            continue
+        if not node.name.startswith("test"):
+            continue
+        async_tests.append(node.name)
+        for decorator in node.decorator_list:
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
+            dotted = _dotted_name(target)
+            if dotted.rsplit(".", 1)[-1] in ASYNC_MARKERS and ".mark." in f".{dotted}":
+                marked.append(node.name)
+                break
+    return sorted(async_tests), sorted(marked)
+
+
 def scan_manifests(root: Path) -> dict:
     result: dict = {
         "pyprojectPath": None,
@@ -249,6 +308,7 @@ def scan_manifests(root: Path) -> dict:
         "buildRequires": [],
         "entryPoints": [],
         "toolConfiguration": {},
+        "pytestOptions": None,
         "layout": None,
         "modules": [],
         "legacySetupPy": False,
@@ -310,6 +370,9 @@ def scan_manifests(root: Path) -> dict:
                 key: key in tool
                 for key in ("ruff", "mypy", "pytest", "coverage", "pyright", "ty", "hatch")
             }
+            pytest_table = tool.get("pytest") if isinstance(tool.get("pytest"), dict) else {}
+            ini_options = pytest_table.get("ini_options")
+            result["pytestOptions"] = json_safe(ini_options) if isinstance(ini_options, dict) else None
             uv_table = tool.get("uv") if isinstance(tool.get("uv"), dict) else {}
             workspace = uv_table.get("workspace") if isinstance(uv_table.get("workspace"), dict) else {}
             members = workspace.get("members")
@@ -598,12 +661,15 @@ def scan_imports(root: Path, max_files: int) -> dict:
             collector.visit(tree)
             names = collector.all
             names.discard("")
+            async_tests, asyncio_marked = async_test_functions(tree)
             files.append(
                 {
                     "path": relative,
                     "imports": sorted(names),
                     "importModules": sorted(collector.modules),
                     "typeCheckingImports": sorted(collector.type_checking),
+                    "asyncTests": async_tests,
+                    "asyncioMarkedTests": asyncio_marked,
                 }
             )
             for name in names:

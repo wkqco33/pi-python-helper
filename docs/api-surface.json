@@ -2045,6 +2045,16 @@
         ]
       }
     },
+    "py_test_config": {
+      "label": "Python Test Config",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "required": false,
+          "description": "Project directory to audit; defaults to the project root."
+        }
+      }
+    },
     "py_test_select": {
       "label": "Python Test Select",
       "parameters": {

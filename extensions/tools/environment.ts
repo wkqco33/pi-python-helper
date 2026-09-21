@@ -10,21 +10,11 @@ import { runScanProject } from '../../src/project/scanner.ts';
 import {
   hasDirectory,
   messageOf,
-  readTextIfExists,
+  readPytestIniFiles,
   resolveProjectRoot,
   text,
   type Pi,
 } from '../shared.ts';
-
-/** INI files that can carry pytest configuration, in the order they are read. */
-const PYTEST_INI_FILES = ['pytest.ini', 'tox.ini', 'setup.cfg'];
-
-async function readPytestIniFiles(root: string): Promise<Record<string, string | undefined>> {
-  const entries = await Promise.all(
-    PYTEST_INI_FILES.map(async (name) => [name, await readTextIfExists(join(root, name))] as const),
-  );
-  return Object.fromEntries(entries);
-}
 
 export function registerEnvironmentTools(pi: Pi): void {
   pi.registerTool({

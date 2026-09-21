@@ -3,12 +3,14 @@ import { detectPythonEnvironment } from '../src/environment/discovery.ts';
 import { registerDependencyTools } from './tools/dependencies.ts';
 import { registerEnvironmentTools } from './tools/environment.ts';
 import { registerTestingTools } from './tools/testing.ts';
+import { registerTestConfigTools } from './tools/test-config.ts';
 import { registerValidationTools } from './tools/validation.ts';
 
 export default function (pi: ExtensionAPI): void {
   registerEnvironmentTools(pi);
   registerDependencyTools(pi);
   registerTestingTools(pi);
+  registerTestConfigTools(pi);
   registerValidationTools(pi);
 
   pi.registerCommand('py-status', {

@@ -467,6 +467,27 @@ Preview or run pytest through uv run --frozen and summarise failures by test, fi
   - `risk`: string
 - `executed`: boolean
 
+### `py_test_config`
+
+Audit pytest configuration against the declared plugins and the tests on disk, and report options that make tests pass without running. Read-only.
+
+- 시스템 프롬프트 한 줄: `Validate pytest configuration and detect tests that never run`
+- 라벨: Python Test Config
+- 프로젝트 상태 변경: 없음 (읽기 전용)
+
+**파라미터**
+
+| 파라미터 | 타입 | 필수 | 설명 |
+|---|---|---|---|
+| `path` | `string` | 아니오 | Project directory to audit; defaults to the project root. |
+
+**프롬프트 가이드라인**
+
+- Use py_test_config when a test run reports fewer tests than expected, when async tests may be silently skipped, or before trusting a green run.
+- Use py_test_config after changing pyproject.toml, pytest.ini, or the test layout to confirm the configuration still matches the project.
+
+**반환 `data` 형태**: 캡처되지 않음
+
 ### `py_test_select`
 
 Select focused pytest targets from changed files using pytest naming conventions, without running tests. Read-only.

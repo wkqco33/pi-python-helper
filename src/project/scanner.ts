@@ -14,7 +14,7 @@ export type ScanMode =
   | 'manifest,imports';
 
 /** Bumped by the scanner when the request or result document changes shape. */
-export const SUPPORTED_SCANNER_VERSION = 2;
+export const SUPPORTED_SCANNER_VERSION = 3;
 
 export interface DeclaredDependency {
   raw: string;
@@ -40,6 +40,12 @@ export interface ManifestSection {
   buildRequires: string[];
   entryPoints: string[];
   toolConfiguration: Record<string, boolean>;
+  /**
+   * `[tool.pytest.ini_options]` as written, or null when the table is absent.
+   * Left untyped because pytest accepts options this package does not model;
+   * only the audited keys are read.
+   */
+  pytestOptions?: Record<string, unknown> | null;
   layout: 'src' | 'flat';
   modules: string[];
   legacySetupPy: boolean;
@@ -98,6 +104,10 @@ export interface ImportSection {
      */
     importModules?: string[];
     typeCheckingImports: string[];
+    /** `async def test_*` names in this file. */
+    asyncTests?: string[];
+    /** The subset of `asyncTests` that carries an async plugin marker. */
+    asyncioMarkedTests?: string[];
   }[];
   thirdParty: {
     import: string;

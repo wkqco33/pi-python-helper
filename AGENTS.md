@@ -4,7 +4,7 @@
 
 `pi-python-helper`는 uv 단일 지원을 전제로 한 범위 제한(bounded) Python 검사 및 명시적 옵트인 기반 명령 실행 도구를 제공하는 TypeScript 기반 pi 패키지입니다. Python이나 uv가 설치되어 있지 않은 환경에서도 확장 로드 시 예외를 던지지 않고 구조화된 오류를 반환해야 합니다.
 
-린트/포맷/타입 진단(LSP)은 이 패키지의 범위가 아닙니다. 해당 기능은 별도 확장에 위임합니다. 여기서 다루는 것은 **환경, 매니페스트/락파일, 의존성 그래프, 테스트 실행, 검증 게이트**입니다.
+린트/포맷/타입 진단(LSP)은 이 패키지의 범위가 아닙니다. 해당 기능은 별도 확장에 위임합니다. 여기서 다루는 것은 **환경, 매니페스트/락파일, 의존성 그래프, 테스트 실행(pytest 설정 검증 포함), 검증 게이트**입니다.
 
 ## 개발 명령어 (Commands)
 
@@ -29,7 +29,7 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 - `src/core/` — 결과 규격, 범위 제한 실행기, 버전, 위험도 분류
 - `src/project/` — 프로젝트 루트 탐색, 스캐너 호출, 매니페스트 진단, 경로 규칙, 설치본 읽기(`installed.ts`), 3자 정합성(`conformance.ts`)
 - `src/dependencies/` — import↔배포명 매핑과 의존성 계획
-- `src/build/` — uv/pytest 커맨드 빌더, 파일 탐색, pytest 파싱, 실패 진단, 오래된 아티팩트
+- `src/build/` — uv/pytest 커맨드 빌더, 파일 탐색, pytest 파싱, pytest 설정 감사(`pytest-audit.ts`), 실패 진단, 오래된 아티팩트
 - `src/validation/` — 완료 게이트, TDD 체크포인트, 검증 번들 요약
 - `helpers/scan_project.py` — `ast` 및 `tomllib` 기반 읽기 전용 스캐너
 

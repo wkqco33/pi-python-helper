@@ -27,6 +27,7 @@ const EXPECTED_TOOLS = [
   'py_sync',
   'py_tdd_checkpoint',
   'py_test',
+  'py_test_config',
   'py_test_select',
   'py_validation_bundle',
 ];

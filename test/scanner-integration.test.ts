@@ -98,6 +98,9 @@ test('the scanner reports manifest, lock drift, and import classification', asyn
     assert.deepEqual(payload.manifest?.uvWorkspaceMembers, ['packages/a']);
     assert.equal(payload.manifest?.toolConfiguration.ruff, true);
     assert.equal(payload.manifest?.toolConfiguration.mypy, false);
+    // `[tool.pytest.ini_options]` is reported so a configuration audit can read
+    // the options pytest will actually use rather than guessing from defaults.
+    assert.equal(payload.manifest?.pytestOptions?.['addopts'], '-q');
 
     assert.equal(payload.lock?.present, true);
     assert.ok(payload.lockComparison?.missingFromLock.includes('missing-dep'));
@@ -282,6 +285,50 @@ test('runScanProject reports which interpreter produced the payload', async (t) 
     assert.equal(scan.ok, true, scan.message ?? 'scanner failed');
     assert.equal(scan.interpreterOrigin, 'path');
     assert.equal(scan.interpreter, interpreter);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('the scanner separates marked async tests from unmarked ones', async (t) => {
+  const interpreter = await resolveInterpreter(process.cwd());
+  if (!interpreter) {
+    t.skip('no Python 3 interpreter available');
+    return;
+  }
+  const root = await mkdtemp(join(tmpdir(), 'py-async-'));
+  try {
+    await mkdir(join(root, 'tests'), { recursive: true });
+    await writeFile(
+      join(root, 'pyproject.toml'),
+      '[project]\nname = "async-pkg"\nversion = "0.1.0"\nrequires-python = ">=3.11"\ndependencies = []\n',
+    );
+    await writeFile(
+      join(root, 'tests', 'test_api.py'),
+      [
+        'import pytest',
+        '',
+        '@pytest.mark.asyncio',
+        'async def test_marked():',
+        '    pass',
+        '',
+        'async def test_unmarked():',
+        '    pass',
+        '',
+        'def test_sync():',
+        '    pass',
+        '',
+      ].join('\n'),
+    );
+
+    const scan = await runScanProject(process.cwd(), { root, mode: 'imports' });
+    assert.equal(scan.ok, true, scan.message ?? 'scanner failed');
+    const file = scan.payload?.imports?.files.find((entry) => entry.path === 'tests/test_api.py');
+    assert.ok(file, 'the test file should be scanned');
+    // Only the syntax separates a coroutine test that runs from one that is
+    // silently skipped, so the scanner must report both lists.
+    assert.deepEqual(file.asyncTests, ['test_marked', 'test_unmarked']);
+    assert.deepEqual(file.asyncioMarkedTests, ['test_marked']);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

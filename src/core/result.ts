@@ -55,9 +55,10 @@ export interface PyToolResult<T = unknown> {
   ok: boolean;
   /**
    * `true` when the caller must act before proceeding: the tool failed, or it
-   * emitted a warning or an error. Derived from `ok`, `warnings`, and `errors`
-   * unless a tool sets it explicitly, so `ok: false` always implies
-   * `attention: true` and every diagnostic is accounted for. This is the field
+   * emitted a warning or an error. An `info` diagnostic is informational by
+   * definition and does not set this. Derived from `ok`, `warnings`, and
+   * `errors` unless a tool sets it explicitly, so `ok: false` always implies
+   * `attention: true` and no diagnostic is silently dropped. This is the field
    * to read when the question is "do I need to do something".
    */
   attention: boolean;
@@ -69,6 +70,15 @@ export interface PyToolResult<T = unknown> {
   suggestions: Suggestion[];
   commands?: CommandPreview[];
   metadata: ToolMetadata;
+}
+
+/**
+ * An `info` diagnostic records a fact; only a warning or an error asks the
+ * caller to do something. Keeping them apart stops a purely informational note
+ * from raising `attention`.
+ */
+function isActionable(value: { warnings: Diagnostic[]; errors: Diagnostic[] }): boolean {
+  return [...value.warnings, ...value.errors].some((entry) => entry.severity !== 'info');
 }
 
 export function result<T>(
@@ -83,8 +93,7 @@ export function result<T>(
 ): PyToolResult<T> {
   return {
     ...value,
-    attention:
-      value.attention ?? (!value.ok || value.warnings.length > 0 || value.errors.length > 0),
+    attention: value.attention ?? (!value.ok || isActionable(value)),
     metadata: {
       toolVersion: TOOL_VERSION,
       cwd,
