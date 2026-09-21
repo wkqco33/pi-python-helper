@@ -1,8 +1,84 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyCommand, isMutatingCommand, splitCommandSegments } from '../src/core/safety.ts';
+import {
+  classifyCommand as coreClassifyCommand,
+  isMutatingCommand as coreIsMutatingCommand,
+  splitCommandSegments,
+  type RiskRule,
+  type SafetyRules,
+} from 'pi-helper-core';
 import { distributionCandidates, normalizeName } from '../src/dependencies/plan.ts';
 import { failure, result, warn } from '../src/core/result.ts';
+
+/**
+ * No production code classifies commands: the tools gate state changes with an
+ * explicit `execute: true`, so a Python risk module would be dead code. These
+ * rules therefore live here as an executable spec, and are exercised against
+ * the shared classifier in `pi-helper-core`. If a tool ever needs to warn on a
+ * risky command, move this table back into the package and wire it in.
+ */
+const PYTHON_SAFE_OVERRIDES: RegExp[] = [
+  /\buv\s+(?:tree|export|version|help)\b/,
+  /\buv\s+pip\s+(?:list|freeze|check)\b/,
+  /\bruff\s+(?:check|format)\b[^&|;]*(?:--diff|--check|--no-cache)\b/,
+  /\bmypy\b[^&|;]*--no-incremental\b/,
+];
+
+const PYTHON_RISK_PATTERNS: RiskRule[] = [
+  {
+    risk: 'irreversible',
+    pattern: /\b(?:uv|poetry|flit|hatch)\s+publish\b|\btwine\s+upload\b/,
+    reason: 'Publishing to a package index is public and cannot be retracted.',
+  },
+  {
+    risk: 'irreversible',
+    pattern: /\b(?:conda|mamba)\s+env\s+remove\b|\bconda\s+remove\b[^&|;]*--all\b/,
+    reason: 'Removing an environment destroys installed state.',
+  },
+  {
+    risk: 'irreversible',
+    pattern: /\b(?:alembic|manage\.py)\b[^&|;]*(?:downgrade|\bzero\b)/,
+    reason: 'Reversing a database migration can drop data.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\b(?:uv|pdm|poetry)\s+(?:add|remove|sync|lock|update|venv)\b/,
+    reason: 'Modifies the environment or the lockfile.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\buv\s+pip\s+(?:install|uninstall|sync)\b/,
+    reason: 'Changes installed packages in the active environment.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\b(?:pip|pip3)\s+(?:install|uninstall)\b/,
+    reason: 'Changes installed packages in the active environment.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\b(?:conda|mamba)\s+(?:install|create|update|remove)\b/,
+    reason: 'Changes conda environment state.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\b(?:alembic|manage\.py)\b[^&|;]*\b(?:upgrade|migrate|makemigrations)\b/,
+    reason: 'Applies a schema change to a database.',
+  },
+  {
+    risk: 'mutating',
+    pattern: /\bpre-commit\s+(?:install|autoupdate|run|clean)\b/,
+    reason: 'Rewrites hook configuration or working tree files.',
+  },
+];
+
+const PYTHON_RULES: Partial<SafetyRules> = {
+  safeOverrides: PYTHON_SAFE_OVERRIDES,
+  patterns: PYTHON_RISK_PATTERNS,
+};
+
+const classifyCommand = (command: string) => coreClassifyCommand(command, PYTHON_RULES);
+const isMutatingCommand = (command: string) => coreIsMutatingCommand(command, PYTHON_RULES);
 
 test('PEP 503 normalization collapses case and separators', () => {
   assert.equal(normalizeName('PyYAML'), 'pyyaml');
