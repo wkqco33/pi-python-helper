@@ -7,6 +7,12 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-21
+
+### Removed
+
+- `src/core/safety.ts` is gone. The tools gate state changes with an explicit `execute: true`, so the Python risk classifier had no production caller and was maintained dead code. The expected classification of Python commands is kept as an executable spec in `test/core.test.ts`, exercised against `pi-helper-core`'s classifier.
+
 ## [0.4.1] - 2026-09-21
 
 ### Changed
