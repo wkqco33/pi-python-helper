@@ -7,6 +7,16 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-21
+
+### Fixed
+
+- A project named through `path` now runs `uv` and `pytest` in the resolved project root instead of `ctx.cwd`. `py_sync`, `py_test`, `py_test_select`, `py_validation_bundle`, and `py_tdd_checkpoint` previously generated and executed their commands in the session directory, so a project reached through `path` failed with "No `pyproject.toml` found in current directory" or ran the wrong tests.
+
+### Added
+
+- `py_tdd_checkpoint` accepts an optional `path` for git discovery.
+
 ## [0.4.2] - 2026-09-21
 
 ### Removed
