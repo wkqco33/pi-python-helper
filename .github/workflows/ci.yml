@@ -74,7 +74,7 @@ jobs:
           python3 - <<'PY'
           import json
           document = json.load(open('environment.json'))
-          assert document['scannerVersion'] == 1, document
+          assert document['scannerVersion'] == 2, document
           assert document['tomlAvailable'] is True, document
           assert document['environment']['version'].startswith('3.'), document
           PY
