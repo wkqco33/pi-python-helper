@@ -179,6 +179,55 @@ test('a declared but unimportable module is an environment problem, not a declar
 });
 
 /**
+ * `uv add <import name>` installs a different package or nothing at all when
+ * the import name and the distribution name disagree (`wconfig`/`wpyconf`,
+ * `yaml`/`PyYAML`). Only a single unambiguous alias may become a command.
+ */
+test('a module with a known distribution is suggested by distribution, not import name', () => {
+  const yaml = diagnoseFailure("ModuleNotFoundError: No module named 'yaml'\n");
+  assert.equal(yaml.suggestions[0].command, 'uv add pyyaml');
+  assert.equal(
+    yaml.suggestions.some((entry) => entry.command === 'uv add yaml'),
+    false,
+  );
+});
+
+test('an import with no known distribution never gets a fabricated uv add command', () => {
+  const unknown = diagnoseFailure("ModuleNotFoundError: No module named 'wconfig'\n");
+  assert.equal(unknown.kind, 'module_not_found');
+  assert.equal(
+    unknown.suggestions.some((entry) => entry.command?.startsWith('uv add')),
+    false,
+  );
+  assert.match(
+    unknown.suggestions.map((entry) => entry.message).join(' '),
+    /verify the distribution/i,
+  );
+});
+
+test('an import with several candidate distributions is not resolved to one command', () => {
+  const cv2 = diagnoseFailure("ModuleNotFoundError: No module named 'cv2'\n");
+  assert.equal(
+    cv2.suggestions.some((entry) => entry.command?.startsWith('uv add')),
+    false,
+  );
+  const messages = cv2.suggestions.map((entry) => entry.message).join(' ');
+  assert.match(messages, /opencv-python/);
+  assert.match(messages, /opencv-python-headless/);
+});
+
+test('refining an unresolved module repeats no suggestion', () => {
+  const base = diagnoseFailure("ModuleNotFoundError: No module named 'wconfig'\n");
+  const refined = refineWithDeclarations(base, {
+    declared: new Set(),
+    localModules: new Set(),
+  });
+  const messages = refined.suggestions.map((entry) => entry.message);
+  assert.equal(messages.length, new Set(messages).size);
+  assert.equal(refined.suggestions.length, base.suggestions.length);
+});
+
+/**
  * The exact shape `uv run --frozen pytest` produced after a sync removed the
  * project's dev tooling. It is not a code failure, and classifying it as
  * "unknown" left the caller to guess.

@@ -1,4 +1,5 @@
 import type { Suggestion } from '../core/result.ts';
+import { importAliasCandidates } from '../dependencies/aliases.ts';
 
 export type FailureKind =
   | 'tool_not_installed'
@@ -222,6 +223,24 @@ export function diagnoseFailure(output: string): FailureDiagnosis {
 
   if (kind === 'module_not_found' && missing) {
     const module = missing[1].split('.')[0];
+    // The traceback names an import, not a distribution. `uv add <import name>`
+    // installs a different package or nothing at all when the two disagree, so a
+    // command is emitted only when the alias table yields exactly one provider.
+    const providers = importAliasCandidates(module);
+    const resolveSuggestion: Suggestion =
+      providers.length === 1
+        ? {
+            message: `Declare the distribution providing "${module}" with uv add ${providers[0]} if it is third-party. Import names often differ from distribution names (PIL/pillow, yaml/PyYAML).`,
+            confidence: 'medium',
+            command: `uv add ${providers[0]}`,
+          }
+        : {
+            message:
+              providers.length > 1
+                ? `"${module}" is provided by more than one distribution (${providers.join(', ')}). Verify which one the project needs before adding it.`
+                : `The distribution providing "${module}" is unknown. Verify the distribution name before adding it; import names often differ from distribution names (PIL/pillow, yaml/PyYAML).`,
+            confidence: 'medium',
+          };
     return {
       kind: 'module_not_found',
       summary: `Import failed because the module "${module}" could not be found.`,
@@ -231,11 +250,7 @@ export function diagnoseFailure(output: string): FailureDiagnosis {
       firstUserFrame: userFrame,
       evidence: [{ message: missing[0].trim(), file: userFrame?.path, line: userFrame?.line }],
       suggestions: [
-        {
-          message: `Declare the distribution that provides "${module}" with uv add ${module} if it is third-party. Import names often differ from distribution names (PIL/pillow, yaml/PyYAML).`,
-          confidence: 'medium',
-          command: `uv add ${module}`,
-        },
+        resolveSuggestion,
         {
           message:
             'If the module is project code, run uv sync so the project package is installed in editable mode.',
@@ -404,7 +419,6 @@ export function refineWithDeclarations(
   const module = diagnosis.missingModule;
   if (!module) return diagnosis;
   const normalized = module.replace(/[-_.]+/g, '-').toLowerCase();
-  const suggestions: Suggestion[] = [];
 
   if (input.localModules.has(module)) {
     return {
@@ -447,14 +461,9 @@ export function refineWithDeclarations(
     };
   }
 
-  suggestions.push({
-    message: `Declare the distribution providing "${module}" with uv add ${module}, or verify the import name.`,
-    confidence: 'medium',
-    command: `uv add ${module}`,
-  });
-  suggestions.push({
-    message: 'Import names can differ from distribution names (PIL/pillow, yaml/PyYAML).',
-    confidence: 'medium',
-  });
-  return { ...diagnosis, suggestions: [...diagnosis.suggestions, ...suggestions] };
+  // The module is neither project code nor declared, so this refinement adds no
+  // new information: `diagnoseFailure` already reported the unknown provider.
+  // Appending here duplicated those suggestions, so the diagnosis is returned
+  // unchanged.
+  return diagnosis;
 }

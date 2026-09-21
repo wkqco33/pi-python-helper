@@ -7,6 +7,11 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+### Fixed
+
+- `py_failure_diagnose` no longer fabricates `uv add <import name>` for a `ModuleNotFoundError` whose providing distribution is unknown, matching the rule `py_dependency_plan` already follows. The alias table resolves a single provider (`yaml` → `uv add pyyaml`), while an import with several candidates (`cv2`) or none asks the caller to verify the distribution instead of installing the wrong package.
+- `py_failure_diagnose` no longer repeats the same suggestion twice when a missing module is neither project code nor declared. `refineWithDeclarations` appended its generic "verify the distribution" advice on top of what the classifier had already reported, so a single undeclared import produced two suggestions with two duplicates.
+
 ## [0.2.0] - 2026-09-22
 
 ### Fixed

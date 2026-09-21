@@ -65,6 +65,27 @@ export const IMPORT_ALIASES: Record<string, string[]> = {
   tqdm: ['tqdm'],
 };
 
+const NORMALIZE_RE = /[-_.]+/g;
+
+/**
+ * Distribution candidates for an import name, from the static alias table only.
+ *
+ * Used where the scanner cannot supply the authoritative provider mapping (a
+ * traceback names an import, not an installed distribution). Ordering is
+ * preserved so a caller can name every candidate when an import maps to more
+ * than one distribution: `cv2` is either `opencv-python` or
+ * `opencv-python-headless`, and picking one silently would install the wrong
+ * variant. An empty result means the provider is unknown, and no `uv add`
+ * command may be fabricated from the import name.
+ */
+export function importAliasCandidates(importName: string): string[] {
+  const normalized = importName.replace(NORMALIZE_RE, '-').trim().toLowerCase();
+  const candidates = new Set<string>();
+  for (const alias of IMPORT_ALIASES[importName] ?? []) candidates.add(alias);
+  for (const alias of IMPORT_ALIASES[normalized] ?? []) candidates.add(alias);
+  return [...candidates];
+}
+
 /** Distributions that are normally invoked as a console script, not imported. */
 export const CONSOLE_ONLY: Set<string> = new Set([
   'ruff',
