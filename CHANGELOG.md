@@ -7,6 +7,36 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-22
+
+### Fixed
+
+- `py_sync` and `py_validation_bundle` no longer delete the project's own dev tooling. `uv sync --all-groups` covers `[dependency-groups]` only, so a project declaring pytest/ruff/pyright in `[project.optional-dependencies]` had them **uninstalled**; the sync now also passes `--all-extras`, and `extras: 'none'` is available when that is not wanted. The destructive behaviour used to report `ok: true`.
+- `py_validation_bundle` re-checks that pytest is runnable between the sync and the test step instead of trusting the sync exit code, and reports the skip reason rather than an unclassified failure.
+- The scanner now runs under `<root>/.venv`'s interpreter when one exists, so import-to-distribution mapping describes the project environment. A host `python3` mapped 4 modules while the project interpreter mapped 84, which made `import wconfig` look unowned and produced a `uv add wconfig` suggestion for a distribution that does not exist. `py_environment` also reports the project's Python version instead of the host's.
+- `providerMappingReliable` is no longer `true` when an interpreter could see an environment but owned none of the project's imports; partial mappings add an `UNMAPPED_IMPORTS` note.
+- `py_project_inspect` no longer reports a false `INSTALLED_VERSION_MISMATCH` for marker-split lock entries. uv writes one entry per marker branch, and comparing a single arbitrary entry flagged a correctly synced 3.12 environment for having 25.1.0 where the 3.14 branch said 21.2.0.
+- `py_project_inspect` no longer reports `PROJECT_NOT_INSTALLED` for a project uv records as `source = { virtual = "." }`. Such a project is intentionally never installed into `.venv`; the finding also claimed "no test can exercise it", which was false. Disclosed as the `PROJECT_VIRTUAL_SOURCE` note instead.
+- `py_project_inspect` finds tests that live inside the package under test (`<package>/tests/`), not only `./tests`, and detects pytest configuration in `pytest.ini`, `tox.ini`, and `setup.cfg` rather than `pyproject.toml` alone.
+- `py_failure_diagnose` classifies `Failed to spawn: \`pytest\`` and `command not found` as `tool_not_installed` instead of `unknown`, keeping the positional first-cause rule.
+- `py_test_select` no longer matches every candidate when tests live inside the package under test. Signals shared by all candidates (the package name and its tokens) are discarded, so a package-rooted test tree narrows instead of selecting 30 of 30 files.
+- `py_test_select` excludes test infrastructure (`tests/__init__.py`, `tests/utils.py`) from pytest targets and reports it separately, and discloses when a selection was not narrowed.
+- `py_dependency_plan` no longer fabricates `uv add <import name>` when the providing distribution is unknown; it names the distribution from installed metadata when available and asks the caller to look it up otherwise.
+
+### Added
+
+- `py_test_select` matches a test file to a changed module by the modules the test **imports**, which is the strongest available signal: `test_db_session.py` gives no naming hint that it covers `db/database.py`. The scanner reports `importModules` per file for this (protocol version 2).
+- `py_validation_bundle` runs the lint/type tools the project declares (`quality: true` by default): `ruff` and `pyright` when declared, `mypy` only when `[tool.mypy]` exists. The bundle previously ignored the checks CI actually runs.
+- `py_test` accepts `extraArgs` so project-standard pytest flags such as coverage options can be passed without the tool modelling each one.
+- `py_sync` accepts `extras` (`all` by default) and reports the installed/uninstalled inventory from uv's output.
+- `py_environment` reports `interpreterOrigin` and splits tool availability into `available` (runnable now), `installed` (console script in the project environment), and `installable` (declared in `uv.lock` but absent), with a `TOOL_NOT_INSTALLED` warning.
+- `py_tdd_checkpoint` records which paths matched and on which tokens (`associations`) and flags a match that rests only on the shared package prefix (`weakAssociation`).
+
+### Changed
+
+- **Breaking:** `py_environment.tools[].available` now means "an executable was found", not "declared or found". A distribution recorded in `uv.lock` is `installable`, so a broken environment no longer looks healthy. Read `installable` for the previous meaning.
+- **Breaking:** scanner protocol `SCANNER_VERSION` is now 2; a scanner reporting version 1 is rejected with `SCANNER_VERSION_MISMATCH`.
+
 ## [0.1.1] - 2026-09-21
 
 ### Changed
