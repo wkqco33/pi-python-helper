@@ -7,6 +7,12 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-21
+
+### Changed
+
+- `src/core/safety.ts` now delegates to `pi-helper-core`'s classifier and supplies only the Python package-manager, environment, and migration rules; the segment-splitting, safe-override precedence, and compound-merge logic is no longer duplicated. Requires `pi-helper-core` 0.1.2, which stops treating `--frozen`/`--locked`/`--list` as read-only flags so `uv sync --frozen` is classified as mutating again.
+
 ## [0.4.0] - 2026-09-21
 
 ### Changed

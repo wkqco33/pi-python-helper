@@ -1,6 +1,6 @@
 {
   "name": "pi-python-helper",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Python (uv) development tools for the pi coding agent",
   "type": "module",
   "keywords": [
