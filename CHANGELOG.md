@@ -7,6 +7,8 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-21
+
 ### Changed
 
 - Adopt `pi-helper-core` (`^0.1.1`) for the shared response envelope, bounded command runner, TDD checkpoint, validation-bundle gate, completion evidence, artifact staleness, and test selection. `src/core/result.ts` and `src/core/runner.ts` are now thin shims, and `src/validation/` and `src/build/` supply only Python signals, labels, and rules.
