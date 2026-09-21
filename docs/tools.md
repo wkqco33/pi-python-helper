@@ -30,12 +30,13 @@
   - `cwd`: string
   - `durationMs`: number
   - `projectRoot` (optional): string
-  - `pythonVersion` (optional): string
   - `toolVersion`: string
+  - `toolchain` (optional): object
+    - `kind`: string
+    - `source`: string
+    - `version`: string
   - `truncated`: boolean
 - `ok`: boolean
-- `projectRoot` (optional): string
-- `pythonVersion` (optional): string
 - `suggestions`: array of
   - `command` (optional): string
   - `confidence`: string

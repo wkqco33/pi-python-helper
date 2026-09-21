@@ -137,7 +137,7 @@ export function registerTestConfigTools(pi: Pi): void {
                 confidence: 'high' as const,
               })),
             projectRoot: root,
-            pythonVersion: scan.payload.pythonVersion,
+            toolchain: { kind: 'python', version: scan.payload.pythonVersion, source: 'project' },
           }),
         );
       } catch (error) {

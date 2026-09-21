@@ -67,7 +67,11 @@ export function registerEnvironmentTools(pi: Pi): void {
               confidence: 'medium' as const,
             })),
             projectRoot: environment.projectRoot,
-            pythonVersion: python?.version,
+            toolchain: {
+              kind: 'python',
+              version: python?.version,
+              source: environment.projectRoot ? 'project' : 'path',
+            },
           }),
         );
       } catch (error) {
@@ -175,7 +179,7 @@ export function registerEnvironmentTools(pi: Pi): void {
             errors: [],
             suggestions: inspection.suggestions,
             projectRoot: inspection.root,
-            pythonVersion: scan.payload.pythonVersion,
+            toolchain: { kind: 'python', version: scan.payload.pythonVersion, source: 'project' },
           }),
         );
       } catch (error) {

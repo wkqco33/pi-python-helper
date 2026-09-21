@@ -7,6 +7,16 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+### Changed
+
+- Adopt `pi-helper-core` (`^0.1.1`) for the shared response envelope, bounded command runner, TDD checkpoint, validation-bundle gate, completion evidence, artifact staleness, and test selection. `src/core/result.ts` and `src/core/runner.ts` are now thin shims, and `src/validation/` and `src/build/` supply only Python signals, labels, and rules.
+- **Breaking:** tool metadata no longer carries `pythonVersion`; the interpreter version now lives in the ecosystem-neutral `metadata.toolchain` (`{ kind: 'python', version }`).
+- Validation and completion messages now use the shared core wording (`uv lock --check`/`uv sync` labels); the drift check reports a mismatch against "the lockfile" generically.
+
+### Added
+
+- `test/core-dependency.test.ts` pins the `pi-helper-core` dependency and the shared behaviours the Python tools delegate to.
+
 ## [0.3.0] - 2026-09-21
 
 ### Added

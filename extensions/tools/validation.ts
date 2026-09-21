@@ -590,7 +590,11 @@ export function registerValidationTools(pi: Pi): void {
                 ],
             commands,
             projectRoot: root,
-            pythonVersion: scan.payload?.pythonVersion,
+            toolchain: {
+              kind: 'python',
+              version: scan.payload?.pythonVersion,
+              source: 'project',
+            },
           }),
         );
       } catch (error) {

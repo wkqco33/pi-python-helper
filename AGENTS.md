@@ -26,7 +26,8 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 ## 구조 (Layout)
 
 - `extensions/index.ts` — 도구 등록 진입점. 도구 정의는 `extensions/tools/*.ts`에 분리합니다.
-- `src/core/` — 결과 규격, 범위 제한 실행기, 버전, 위험도 분류
+- `src/core/` — `pi-helper-core` shim(`result.ts`, `runner.ts`), 버전, Python 위험도 분류
+- `pi-helper-core` — 응답 envelope, 범위 제한 실행기, TDD/검증/증거 게이트, 오래된 아티팩트, 테스트 선별의 단일 진실. 헬퍼는 이들을 다시 구현하지 말고 시그널·라벨·규칙만 주입하세요. `src/validation/{bundle,evidence,tdd}.ts`, `src/build/{staleness,selection}.ts`가 그 어댑터입니다.
 - `src/project/` — 프로젝트 루트 탐색, 스캐너 호출, 매니페스트 진단, 경로 규칙, 설치본 읽기(`installed.ts`), 3자 정합성(`conformance.ts`)
 - `src/dependencies/` — import↔배포명 매핑과 의존성 계획
 - `src/build/` — uv/pytest 커맨드 빌더, 파일 탐색, pytest 파싱, pytest 설정 감사(`pytest-audit.ts`), 실패 진단, 오래된 아티팩트
@@ -39,7 +40,7 @@ echo '{"mode":"all","root":"."}' | python3 helpers/scan_project.py | python3 -m 
 
 - 사용자 입력을 쉘 문자열로 직접 보간하지 말고 **항상 인자 배열**로 전달하세요. uv/pytest/git 호출은 `runCommand` 또는 `src/build/commands.ts`의 빌더를 사용합니다.
 - 모든 서브프로세스는 타임아웃, `AbortSignal`, 출력 크기 제한을 적용하세요.
-- 모든 도구는 공통 `PyToolResult` 규격을 반환하세요.
+- 모든 도구는 공통 `PyToolResult` 규격을 반환하세요. 이 규격은 `pi-helper-core`에서 오므로 헬퍼 안에서 재정의하지 마세요.
 - 읽기 전용 작업은 자동 실행 가능하지만, `uv sync`/`uv lock`처럼 상태를 바꾸는 작업은 `execute: true` 옵트인을 요구하세요. 이 패키지는 소스 파일을 쓰지 않습니다.
 - 프로젝트를 수정하는 헬퍼를 추가하지 마세요. `helpers/scan_project.py`는 읽기 전용을 유지해야 합니다.
 - 헬퍼의 파일 시스템 접근은 `safe_is_file`/`safe_is_dir`/`safe_iterdir`를 통해서만 하세요. 읽을 수 없는 디렉터리 하나가 전체 스캔을 중단시켜서는 안 됩니다(`PermissionError`는 실제로 흔한 조건입니다).

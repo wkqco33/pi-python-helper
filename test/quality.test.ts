@@ -96,7 +96,7 @@ test('a skipped test step reports the reason instead of a generic failure', () =
   });
   assert.equal(summary.ok, false);
   assert.equal(summary.checks.test, false);
-  assert.match(summary.reason, /environment could not be synchronised/);
+  assert.match(summary.reason, /could not be completed/);
 });
 
 test('a test step skipped after a successful sync reports the skip reason', () => {

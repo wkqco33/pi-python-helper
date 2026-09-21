@@ -4841,19 +4841,44 @@
               }
             },
             {
-              "key": "pythonVersion",
-              "optional": true,
+              "key": "toolVersion",
+              "optional": false,
               "shape": {
                 "kind": "primitive",
                 "name": "string"
               }
             },
             {
-              "key": "toolVersion",
-              "optional": false,
+              "key": "toolchain",
+              "optional": true,
               "shape": {
-                "kind": "primitive",
-                "name": "string"
+                "kind": "object",
+                "fields": [
+                  {
+                    "key": "kind",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "source",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  },
+                  {
+                    "key": "version",
+                    "optional": false,
+                    "shape": {
+                      "kind": "primitive",
+                      "name": "string"
+                    }
+                  }
+                ]
               }
             },
             {
@@ -4873,22 +4898,6 @@
         "shape": {
           "kind": "primitive",
           "name": "boolean"
-        }
-      },
-      {
-        "key": "projectRoot",
-        "optional": true,
-        "shape": {
-          "kind": "primitive",
-          "name": "string"
-        }
-      },
-      {
-        "key": "pythonVersion",
-        "optional": true,
-        "shape": {
-          "kind": "primitive",
-          "name": "string"
         }
       },
       {

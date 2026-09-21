@@ -114,7 +114,7 @@ test('a passing test run is not proof when the environment does not match the lo
   });
   assert.equal(drifted.ok, false);
   assert.equal(drifted.checks.conformance, false);
-  assert.match(drifted.reason, /do not match uv\.lock/);
+  assert.match(drifted.reason, /do not match the lockfile/);
 
   const unverifiable = summarizeValidation({
     lock: { executed: true, ok: true },
