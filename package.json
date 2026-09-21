@@ -71,6 +71,6 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "pi-helper-core": "^0.1.1"
+    "pi-helper-core": "^0.1.2"
   }
 }
