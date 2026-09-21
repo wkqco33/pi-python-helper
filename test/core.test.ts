@@ -108,4 +108,39 @@ test('result and failure share the same metadata contract', () => {
   assert.equal(bad.ok, false);
   assert.equal(bad.errors[0].code, 'E_CODE');
   assert.deepEqual(bad.evidence, []);
+  assert.equal(bad.attention, true);
+});
+
+test('attention is derived so a diagnostic is never silently ignored', () => {
+  const warned = result('/tmp', Date.now(), {
+    ok: true,
+    summary: 'warned',
+    evidence: [],
+    warnings: [warn('W', 'warning')],
+    errors: [],
+    suggestions: [],
+  });
+  assert.equal(warned.ok, true);
+  assert.equal(warned.attention, true);
+
+  const clean = result('/tmp', Date.now(), {
+    ok: true,
+    summary: 'clean',
+    evidence: [],
+    warnings: [],
+    errors: [],
+    suggestions: [],
+  });
+  assert.equal(clean.attention, false);
+
+  const overridden = result('/tmp', Date.now(), {
+    ok: false,
+    attention: false,
+    summary: 'explicit',
+    evidence: [],
+    warnings: [],
+    errors: [],
+    suggestions: [],
+  });
+  assert.equal(overridden.attention, false);
 });

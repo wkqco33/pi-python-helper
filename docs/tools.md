@@ -12,6 +12,7 @@
 
 모든 도구는 동일한 `PyToolResult` 규격을 반환합니다. 반환 형태는 구조만 기록하며 값·경로·버전·소요시간은 스냅샷에서 제외합니다.
 
+- `attention`: boolean
 - `commands` (optional): array of
   - `args`: array<string>
   - `cwd`: string

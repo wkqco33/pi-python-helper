@@ -22,7 +22,7 @@ license: Apache-2.0
 7. 실패 출력이 있을 때는 `py_failure_diagnose`를 사용하세요. `site-packages` 내부 프레임은 원인이 아니며, 도구는 첫 번째 프로젝트 프레임을 지목합니다. 실행 파일을 찾지 못해 명령이 시작되지 못한 경우(`Failed to spawn`, `command not found`)는 `tool_not_installed`로 분류됩니다.
 8. 의존성이 바뀌었거나 `.venv`가 오래된 경우 `py_sync`로 `uv lock --check` 또는 `uv sync --frozen`을 미리보기/실행하세요. sync는 `[project.optional-dependencies]`의 extra를 함께 요청하므로 dev 도구가 extra로 선언된 프로젝트에서도 삭제되지 않습니다. `SYNC_REMOVED_PACKAGES`가 보이면 그것이 이후 "command not found"의 원인입니다.
 9. 재현이 어려운 실패는 `py_test`의 `lastFailed=true`(`--lf`)로 직전 실패만 다시 실행하세요.
-10. 작업 완료를 보고하기 전에 `py_validation_bundle`(lock 검사 → sync → pytest → 환경 정합성 → 오래된 아티팩트 검사)을 실행하고, `py_completion_evidence`로 근거가 충분한지 확인하세요. 정합성이 `drifted`나 `unverifiable`이면 테스트가 통과했어도 게이트는 실패합니다.
+10. 작업 완료를 보고하기 전에 `py_validation_bundle`(lock 검사 → sync → pytest → 환경 정합성 → 오래된 아티팩트 검사)을 실행하고, `py_completion_evidence`로 근거가 충분한지 확인하세요. 정합성이 `drifted`나 `unverifiable`이면 테스트가 통과했어도 게이트는 실패합니다. 각 응답에서 조치 필요 여부는 `attention`으로 판단하세요.
 11. `py_tdd_checkpoint`로 프로덕션 변경에 대응하는 테스트 변경이 있는지 확인하세요.
 
 ## 안전 규칙 (Safety)
@@ -34,6 +34,8 @@ license: Apache-2.0
 
 ## 해석 규칙 (Interpretation rules)
 
+- `ok`는 도구의 **판정**이며 "도구가 실행됐다"는 뜻이 아닙니다. 검사 도구는 문제를 찾으면 도구 자체가 실패하지 않았어도 `ok: false`를 반환합니다. 조치가 필요한지는 `attention`을 읽으세요: `ok: false`이거나 경고·오류가 하나라도 있으면 `true`입니다.
+- `ok: false`에는 항상 그것을 설명하는 진단(`warnings` 또는 `errors`)이 함께 옵니다. 설명 없는 `ok: false`를 보면 도구 결함이므로 그대로 보고하세요. 게이트 도구는 판정을 `data.ok`(`checkpoint.ok`, `evidence.ok`, `summary.ok`)에도 노출합니다.
 - `PROJECT_INSTALLED_NOT_EDITABLE`는 프로젝트가 환경에 live link가 아니라 복사본으로 설치되어, 소스 변경이 테스트에 반영되지 않음을 의미합니다. `uv sync`로 해결하세요.
 - `PROJECT_NOT_INSTALLED`는 lock이 editable 설치를 기대하는데 `.venv`에 프로젝트가 없다는 뜻입니다. `uv sync`를 실행하고, 그래도 실패하면 빌드 백엔드가 패키지를 찾지 못한 것입니다(`[project] name`과 모듈 디렉터리 이름이 일치하는지 확인).
 - `PROJECT_VIRTUAL_SOURCE`는 정상입니다. `[build-system]`이 없으면 uv는 프로젝트를 `virtual` 소스로 기록하고 `.venv`에 설치하지 않습니다. 누락(`PROJECT_NOT_INSTALLED`)으로 취급하지 말고 `[build-system]` 추가 여부만 검토하세요.

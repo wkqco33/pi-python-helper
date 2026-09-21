@@ -45,7 +45,22 @@ export interface ToolMetadata {
  * `data`; everything the agent must reason about lives in the typed sections.
  */
 export interface PyToolResult<T = unknown> {
+  /**
+   * The tool's own verdict, not "the tool ran". `true` means the question this
+   * tool asks was answered affirmatively: the project state is acceptable, the
+   * command succeeded, or the gate may proceed. A diagnostic tool that finds a
+   * problem therefore returns `ok: false` without the tool itself having
+   * failed. Read `attention` for "must the caller act".
+   */
   ok: boolean;
+  /**
+   * `true` when the caller must act before proceeding: the tool failed, or it
+   * emitted a warning or an error. Derived from `ok`, `warnings`, and `errors`
+   * unless a tool sets it explicitly, so `ok: false` always implies
+   * `attention: true` and every diagnostic is accounted for. This is the field
+   * to read when the question is "do I need to do something".
+   */
+  attention: boolean;
   summary: string;
   data?: T;
   evidence: Evidence[];
@@ -59,7 +74,8 @@ export interface PyToolResult<T = unknown> {
 export function result<T>(
   cwd: string,
   startedAt: number,
-  value: Omit<PyToolResult<T>, 'metadata'> & {
+  value: Omit<PyToolResult<T>, 'metadata' | 'attention'> & {
+    attention?: boolean;
     truncated?: boolean;
     projectRoot?: string;
     pythonVersion?: string;
@@ -67,6 +83,8 @@ export function result<T>(
 ): PyToolResult<T> {
   return {
     ...value,
+    attention:
+      value.attention ?? (!value.ok || value.warnings.length > 0 || value.errors.length > 0),
     metadata: {
       toolVersion: TOOL_VERSION,
       cwd,

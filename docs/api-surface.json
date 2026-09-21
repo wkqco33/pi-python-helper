@@ -2345,6 +2345,14 @@
     "kind": "object",
     "fields": [
       {
+        "key": "attention",
+        "optional": false,
+        "shape": {
+          "kind": "primitive",
+          "name": "boolean"
+        }
+      },
+      {
         "key": "commands",
         "optional": true,
         "shape": {

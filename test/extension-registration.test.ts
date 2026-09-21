@@ -91,6 +91,30 @@ test('py_completion_evidence reports an incomplete run as not proven', async () 
   assert.equal(details.errors[0].code, 'COMPLETION_NOT_PROVEN');
 });
 
+test('py_test_select always explains a verdict instead of failing silently', async () => {
+  const { tools } = loadExtension();
+  const tool = tools.get('py_test_select');
+  assert.ok(tool);
+  const response = await tool.execute(
+    'id',
+    { changedPaths: ['README.md'], testFiles: ['tests/test_app.py'] },
+    undefined,
+    undefined,
+    { cwd: process.cwd() },
+  );
+  const details = response.details as {
+    ok: boolean;
+    attention: boolean;
+    warnings: { code?: string }[];
+  };
+  // A change set with no Python file is not a selection failure, but the empty
+  // result must still carry a reason: an unexplained `ok: false` used to be
+  // indistinguishable from a broken tool.
+  assert.equal(details.ok, true);
+  assert.equal(details.attention, true);
+  assert.ok(details.warnings.some((entry) => entry.code === 'NO_CHANGED_PATHS'));
+});
+
 test('py_failure_diagnose points at the project frame, not site-packages', async () => {
   const { tools } = loadExtension();
   const tool = tools.get('py_failure_diagnose');

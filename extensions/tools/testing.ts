@@ -98,6 +98,10 @@ export function registerTestingTools(pi: Pi): void {
           ? undefined
           : await collectTestImports(root, ctx.cwd, signal);
         const selection = selectTests(changed, testFiles, { testImports });
+        // `changed` still holds non-Python paths, so "nothing to select" has to be
+        // decided on what the selector actually matched.
+        const hasPythonChange =
+          selection.changedSourceFiles.length > 0 || selection.changedTestFiles.length > 0;
         // Only files pytest collects tests from become targets; naming
         // `tests/utils.py` as a target overstates the run.
         const targets = selection.selected
@@ -111,7 +115,7 @@ export function registerTestingTools(pi: Pi): void {
 
         return text(
           result(ctx.cwd, started, {
-            ok: selection.selected.length > 0 || testFiles.length === 0,
+            ok: selection.selected.length > 0 || testFiles.length === 0 || !hasPythonChange,
             summary:
               `${selection.selected.length} test file(s) selected from ${testFiles.length} known test file(s) ` +
               `for ${selection.changedSourceFiles.length} changed source file(s) (${changedSource}).` +
@@ -137,6 +141,16 @@ export function registerTestingTools(pi: Pi): void {
               },
             ],
             warnings: [
+              ...(!hasPythonChange
+                ? [
+                    {
+                      code: 'NO_CHANGED_PATHS',
+                      message:
+                        'No changed Python file was found, so nothing could be selected. Pass changedPaths explicitly when the change is not visible to git.',
+                      severity: 'warning' as const,
+                    },
+                  ]
+                : []),
               ...(testFiles.length === 0
                 ? [
                     {

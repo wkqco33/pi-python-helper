@@ -7,8 +7,13 @@ does not guarantee a stable public tool schema.
 
 ## [Unreleased]
 
+### Added
+
+- Every tool response carries `attention`: `true` whenever the caller must act (`ok: false`, or any warning or error). It is derived centrally in `result()`, so `ok: false` always implies `attention: true` and no diagnostic is silently dropped. `ok` is now documented as the tool's **verdict** — "the project state is acceptable / the command succeeded / the gate may proceed" — rather than "the tool ran", so a check that finds a problem still returns `ok: false` without having failed.
+
 ### Fixed
 
+- `py_test_select` no longer returns `ok: false` with no diagnostic at all when the change set contains no Python file (or git reports no changes). An empty selection is an answer rather than a failure, so it now returns `ok: true` and explains itself with the `NO_CHANGED_PATHS` warning.
 - `py_failure_diagnose` no longer fabricates `uv add <import name>` for a `ModuleNotFoundError` whose providing distribution is unknown, matching the rule `py_dependency_plan` already follows. The alias table resolves a single provider (`yaml` → `uv add pyyaml`), while an import with several candidates (`cv2`) or none asks the caller to verify the distribution instead of installing the wrong package.
 - `py_failure_diagnose` no longer repeats the same suggestion twice when a missing module is neither project code nor declared. `refineWithDeclarations` appended its generic "verify the distribution" advice on top of what the classifier had already reported, so a single undeclared import produced two suggestions with two duplicates.
 
